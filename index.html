@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clarity by Claude — Confidence Calibration System</title>
+  <meta name="description" content="Clarity helps users evaluate AI-generated outputs through adaptive evaluation scaffolding, reasoning transparency, and confidence calibration.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=2">
+</head>
+<body>
+  <!-- Onboarding overlay -->
+  <div id="onboarding-overlay" class="onboarding-overlay">
+    <div class="onboarding-modal">
+      <div class="onboarding-glow"></div>
+      <div class="onboarding-icon">◈</div>
+      <h1>Clarity</h1>
+      <p class="onboarding-subtitle">by Claude</p>
+      <p class="onboarding-desc">An adaptive evaluation system that helps you develop calibrated confidence in AI-generated outputs.</p>
+      <div class="onboarding-features">
+        <div class="onboarding-feature">
+          <span class="of-icon" style="color:#34D399">◈</span>
+          <span><strong>Reasoning Lens</strong> — See what's grounded, inferred, or uncertain</span>
+        </div>
+        <div class="onboarding-feature">
+          <span class="of-icon" style="color:#FBBF24">◈</span>
+          <span><strong>Clarity Card</strong> — Structured self-assessment of every response</span>
+        </div>
+        <div class="onboarding-feature">
+          <span class="of-icon" style="color:#A78BFA">◈</span>
+          <span><strong>Evaluation Nudges</strong> — Contextual prompts for critical thinking</span>
+        </div>
+        <div class="onboarding-feature">
+          <span class="of-icon" style="color:#F87171">◈</span>
+          <span><strong>Calibration Dashboard</strong> — Track your evaluation skills over time</span>
+        </div>
+      </div>
+      <button id="onboarding-start" class="onboarding-btn">
+        <span>Explore the Prototype</span>
+        <span class="btn-arrow">→</span>
+      </button>
+      <p class="onboarding-note">Fully interactive prototype · Type any prompt or explore demo scenarios</p>
+    </div>
+  </div>
+
+  <div id="app">
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <span class="logo-icon">◈</span>
+          <div class="logo-text-group">
+            <span class="logo-text">Clarity</span>
+            <span class="logo-badge">by Claude</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-btn active" data-view="chat" id="nav-chat">
+          <svg class="nav-svg" viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v7a2 2 0 01-2 2H8l-4 3V14H4a2 2 0 01-2-2V5z"/></svg>
+          <span>Conversations</span>
+        </button>
+        <button class="nav-btn" data-view="dashboard" id="nav-dashboard">
+          <svg class="nav-svg" viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path d="M2 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1H3a1 1 0 01-1-1V4zm5 2a1 1 0 011-1h2a1 1 0 011 1v10a1 1 0 01-1 1H8a1 1 0 01-1-1V6zm5-3a1 1 0 011-1h2a1 1 0 011 1v13a1 1 0 01-1 1h-2a1 1 0 01-1-1V3z"/></svg>
+          <span>Calibration Dashboard</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="demo-scenarios" id="demo-scenarios">
+        <h3 class="sidebar-section-title">Demo Scenarios</h3>
+        <button class="scenario-btn" data-scenario="research" id="scenario-research">
+          <span class="scenario-icon">🔬</span>
+          <span class="scenario-info">
+            <span class="scenario-title">Research Analysis</span>
+            <span class="scenario-desc">AI &amp; critical thinking</span>
+          </span>
+          <span class="scenario-badge">5 segments</span>
+        </button>
+        <button class="scenario-btn" data-scenario="code" id="scenario-code">
+          <span class="scenario-icon">💻</span>
+          <span class="scenario-info">
+            <span class="scenario-title">Code Generation</span>
+            <span class="scenario-desc">JWT auth middleware</span>
+          </span>
+          <span class="scenario-badge">5 segments</span>
+        </button>
+        <button class="scenario-btn" data-scenario="writing" id="scenario-writing">
+          <span class="scenario-icon">✍️</span>
+          <span class="scenario-info">
+            <span class="scenario-title">Professional Writing</span>
+            <span class="scenario-desc">Executive summary</span>
+          </span>
+          <span class="scenario-badge">6 segments</span>
+        </button>
+
+        <div class="sidebar-divider-thin"></div>
+
+        <button class="scenario-btn active" data-scenario="custom" id="scenario-custom">
+          <span class="scenario-icon">💬</span>
+          <span class="scenario-info">
+            <span class="scenario-title">Custom Chat</span>
+            <span class="scenario-desc">Type any prompt</span>
+          </span>
+          <span class="scenario-badge badge-live">Live</span>
+        </button>
+      </div>
+
+      <!-- Legend -->
+      <div class="lens-legend" id="lens-legend">
+        <h3 class="sidebar-section-title">Reasoning Lens Legend</h3>
+        <div class="legend-item">
+          <span class="legend-dot" style="background:#34D399"></span>
+          <span class="legend-label">Well-Grounded</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background:#FBBF24"></span>
+          <span class="legend-label">Inferred</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background:#F87171"></span>
+          <span class="legend-label">Uncertain</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background:#A78BFA"></span>
+          <span class="legend-label">Subjective</span>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="prototype-badge">
+          <span class="proto-label">Interactive Prototype</span>
+          <span class="proto-version">Clarity v1.0</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main id="main-content">
+      <!-- Chat View -->
+      <div id="chat-view" class="view active">
+        <header class="chat-header">
+          <div class="chat-title-group">
+            <h1 id="conversation-title" class="chat-title">Research Analysis</h1>
+            <span id="conversation-subtitle" class="chat-subtitle">AI &amp; Critical Thinking in Knowledge Work</span>
+          </div>
+          <div class="chat-controls">
+            <div class="reasoning-lens-control" id="reasoning-lens-control">
+              <div class="lens-indicator" id="lens-indicator">
+                <span class="lens-dot"></span>
+              </div>
+              <span class="lens-label">Reasoning Lens</span>
+              <label class="toggle-switch" for="lens-toggle">
+                <input type="checkbox" id="lens-toggle">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <button id="api-settings-btn" class="api-settings-btn" title="AI Engine Settings">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+            </button>
+            <div class="model-badge">
+              <span class="model-dot"></span>
+              <span id="model-name">Claude 4 Opus</span>
+            </div>
+          </div>
+        </header>
+
+        <div class="chat-messages" id="chat-messages">
+          <!-- Rendered by JS -->
+        </div>
+
+        <div class="chat-input-area">
+          <div class="input-wrapper">
+            <textarea id="chat-input" placeholder="Type any prompt to see Clarity in action..." rows="1"></textarea>
+            <button id="send-btn" class="send-btn" aria-label="Send message">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/></svg>
+            </button>
+          </div>
+          <p class="input-note">Type any prompt — the AI will respond with full Clarity evaluation scaffolding</p>
+        </div>
+      </div>
+
+      <!-- Dashboard View -->
+      <div id="dashboard-view" class="view">
+        <header class="dashboard-header">
+          <div>
+            <h1 class="dashboard-title">Calibration Dashboard</h1>
+            <p class="dashboard-subtitle">Your evaluation skills and trust patterns over time</p>
+          </div>
+          <div class="dashboard-period">
+            <span class="period-label">Last 8 weeks</span>
+            <span class="period-badge">Updated today</span>
+          </div>
+        </header>
+
+        <div class="dashboard-content" id="dashboard-content">
+          <!-- Top metric cards -->
+          <div class="metric-hero-row" id="metric-hero-row"></div>
+
+          <!-- Charts row -->
+          <div class="charts-row">
+            <div class="chart-card chart-card-large" id="calibration-chart-card">
+              <div class="chart-card-header">
+                <h3>Trust Calibration Score</h3>
+                <span class="chart-badge">Trending Up ↑</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="calibration-chart" width="700" height="280"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="charts-row charts-row-split">
+            <div class="chart-card" id="patterns-chart-card">
+              <div class="chart-card-header">
+                <h3>Evaluation Actions</h3>
+                <span class="chart-subtitle">How you respond to AI outputs</span>
+              </div>
+              <div class="chart-container donut-container">
+                <div class="donut-wrapper" style="width: 180px; height: 180px; flex-shrink: 0; position: relative;">
+                  <canvas id="patterns-chart" style="position: absolute; top:0; left:0; width: 100%; height: 100%;"></canvas>
+                </div>
+                <div id="patterns-legend" class="chart-legend"></div>
+              </div>
+            </div>
+            <div class="chart-card" id="domain-chart-card">
+              <div class="chart-card-header">
+                <h3>Domain Calibration</h3>
+                <span class="chart-subtitle">Calibration score by task type</span>
+              </div>
+              <div id="domain-bars" class="domain-bars"></div>
+            </div>
+          </div>
+
+          <!-- Growth indicators -->
+          <div class="growth-section" id="growth-section">
+            <h3 class="section-title">Growth Indicators</h3>
+            <div class="growth-cards" id="growth-cards"></div>
+          </div>
+
+          <!-- Insights -->
+          <div class="insights-section" id="insights-section">
+            <h3 class="section-title">Personalized Insights</h3>
+            <div class="insights-list" id="insights-list"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- API Settings Modal -->
+  <div id="api-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-icon">⚙</span>
+          <h2>AI Engine Settings</h2>
+        </div>
+        <button id="modal-close" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-mode="simulator">Smart Simulator</button>
+          <button class="mode-tab" data-mode="api">Live AI Connect</button>
+        </div>
+        <div id="mode-simulator" class="mode-panel active">
+          <div class="mode-status">
+            <span class="status-dot active"></span>
+            <span>Active — No setup needed</span>
+          </div>
+          <p class="mode-desc">Built-in intelligent response engine that analyzes your prompt, generates contextual responses, and creates evaluation scaffolding — all client-side with zero latency.</p>
+          <div class="mode-features">
+            <div class="mode-feature"><span class="mf-check">✓</span> Zero setup required</div>
+            <div class="mode-feature"><span class="mf-check">✓</span> Works offline</div>
+            <div class="mode-feature"><span class="mf-check">✓</span> Instant responses</div>
+            <div class="mode-feature"><span class="mf-check">✓</span> Full Clarity scaffolding</div>
+          </div>
+        </div>
+        <div id="mode-api" class="mode-panel">
+          <div class="mode-status">
+            <span class="status-dot" id="api-status-dot"></span>
+            <span id="api-status-text">Not connected</span>
+          </div>
+          <p class="mode-desc">Connect to Google's Gemini API for real AI-generated responses with live self-critique and evaluation scaffolding.</p>
+          <div class="api-input-group">
+            <label for="api-key-input">Gemini API Key</label>
+            <div class="api-input-row">
+              <input type="password" id="api-key-input" placeholder="Paste your Gemini API key..." autocomplete="off" spellcheck="false">
+              <button id="toggle-key-vis" class="key-vis-btn" title="Toggle visibility">👁</button>
+            </div>
+            <p class="api-hint">Free key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> · Stored in your browser only</p>
+          </div>
+          <div class="mode-features">
+            <div class="mode-feature"><span class="mf-check">✓</span> Real AI-generated responses</div>
+            <div class="mode-feature"><span class="mf-check">✓</span> Live self-critique analysis</div>
+            <div class="mode-feature"><span class="mf-check">✓</span> No server — direct browser-to-API</div>
+            <div class="mode-feature"><span class="mf-check">✓</span> Auto-fallback to Simulator on error</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-save" class="modal-save-btn">Save &amp; Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="data.js?v=2"></script>
+  <script src="app.js?v=2"></script>
+</body>
+</html>
