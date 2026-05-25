@@ -288,7 +288,7 @@ pre code {
   overflow: hidden;
 }
 
-/* ─── SIDEBAR ───────────────────────────────────────── */
+/* ─── SIDEBAR ─────��─────────────────────────────────── */
 #sidebar {
   width: var(--sidebar-width);
   min-width: var(--sidebar-width);
@@ -617,6 +617,214 @@ pre code {
 .reasoning-lens-control.active .lens-label {
   color: var(--accent-light);
 }
+
+/* AVR Meter */
+.avr-meter-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.avr-meter {
+  width: 80px;
+  height: 6px;
+  background: var(--bg-surface-3);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+}
+
+.avr-fill {
+  height: 100%;
+  width: 0%;
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-radius: 3px;
+}
+
+/* Dynamic HSL glow based on AVR */
+.avr-fill {
+  background: hsl(0, 100%, 50%); /* Ruby red */
+  box-shadow: 0 0 8px hsl(0, 100%, 50%);
+}
+
+.avr-meter-container[data-avr-range="mid"] .avr-fill {
+  background: hsl(40, 100%, 50%); /* Gold-amber */
+  box-shadow: 0 0 8px hsl(40, 100%, 50%);
+}
+
+.avr-meter-container[data-avr-range="high"] .avr-fill {
+  background: hsl(120, 100%, 35%); /* Emerald green */
+  box-shadow: 0 0 8px hsl(120, 100%, 35%);
+}
+
+.avr-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+.avr-value {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 30px;
+}
+
+/* Lens Mode Dropdown */
+.lens-mode-dropdown {
+  padding: 6px 10px;
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  font-family: inherit;
+}
+
+.lens-mode-dropdown:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.lens-mode-dropdown:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+/* Copy Gate Modal */
+.modal-btn {
+  padding: 10px 20px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--duration-normal);
+}
+
+.modal-btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.modal-btn-primary:hover:not(:disabled) {
+  background: var(--accent-light);
+  transform: translateY(-1px);
+}
+
+.modal-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-btn-secondary {
+  background: var(--bg-surface-3);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+
+.modal-btn-secondary:hover {
+  background: var(--bg-hover);
+}
+
+.copy-gate-message {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.copy-gate-warning {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  background: rgba(248, 113, 113, 0.08);
+  padding: 12px 14px;
+  border-left: 3px solid var(--color-uncertain);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin-bottom: 20px;
+}
+
+.copy-gate-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gate-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--duration-fast);
+}
+
+.gate-checkbox input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.gate-checkbox:hover {
+  color: var(--text-primary);
+}
+
+/* Toast Notifications */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 16px;
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  z-index: 2000;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s var(--ease-out);
+  pointer-events: none;
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.toast.success {
+  border-color: var(--color-grounded);
+  background: rgba(52, 211, 153, 0.1);
+  color: var(--color-grounded);
+}
+
+.toast.warning {
+  border-color: var(--color-uncertain);
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--color-uncertain);
+}
+
+.toast.info {
+  border-color: var(--accent);
+  background: rgba(217, 119, 87, 0.1);
+  color: var(--accent);
+}
+
+
 
 /* Toggle Switch */
 .toggle-switch {

@@ -27,6 +27,9 @@
     currentScenario: 'research',
     currentView: 'chat',
     lensActive: false,
+    lensMode: 'full',
+    avrScore: 0,
+    checklistState: {},
     expandedCards: new Set(),
     expandedAnnotations: new Set(),
     dashboardRendered: false,
@@ -35,6 +38,8 @@
     apiMode: 'simulator',
     apiKey: '',
     isGenerating: false,
+    pendingCopyContent: null,
+    copyGateConfirmed: false,
     sessionStats: {
       lensToggles: 0,
       cardExpansions: 0,
@@ -50,7 +55,7 @@
     chatMessages: document.getElementById('chat-messages'),
     chatView: document.getElementById('chat-view'),
     dashboardView: document.getElementById('dashboard-view'),
-    lensToggle: document.getElementById('lens-toggle'),
+    lensMode: document.getElementById('lens-mode'),
     lensControl: document.getElementById('reasoning-lens-control'),
     lensLegend: document.getElementById('lens-legend'),
     convTitle: document.getElementById('conversation-title'),
@@ -69,7 +74,16 @@
     apiKeyInput: document.getElementById('api-key-input'),
     toggleKeyVis: document.getElementById('toggle-key-vis'),
     apiStatusDot: document.getElementById('api-status-dot'),
-    apiStatusText: document.getElementById('api-status-text')
+    apiStatusText: document.getElementById('api-status-text'),
+    avrMeter: document.getElementById('avr-meter'),
+    avrValue: document.getElementById('avr-value'),
+    copyGateModal: document.getElementById('copy-gate-modal'),
+    copyGateClose: document.getElementById('copy-gate-close'),
+    copyGateCancel: document.getElementById('copy-gate-cancel'),
+    copyGateConfirm: document.getElementById('copy-gate-confirm'),
+    gateConfirmAvr: document.getElementById('gate-confirm-avr'),
+    gateConfirmReview: document.getElementById('gate-confirm-review'),
+    copyGateAvrValue: document.getElementById('copy-gate-avr-value')
   };
 
   // ─── UTILITIES ────────────────────────────────────────
@@ -136,13 +150,42 @@
     btn.addEventListener('click', () => switchScenario(btn.dataset.scenario));
   });
 
-  // ─── REASONING LENS TOGGLE ───────────────────────────
-  dom.lensToggle.addEventListener('change', () => {
-    state.lensActive = dom.lensToggle.checked;
-    dom.lensControl.classList.toggle('active', state.lensActive);
-    dom.lensLegend.classList.toggle('visible', state.lensActive);
-    dom.chatMessages.classList.toggle('lens-active', state.lensActive);
+  // ─── REASONING LENS MODE SELECTOR ──────────────────────
+  function updateAVRMeter() {
+    const checkedBoxes = Object.values(state.checklistState).filter(v => v).length;
+    const totalBoxes = Object.keys(state.checklistState).length || 1;
+    state.avrScore = Math.round((checkedBoxes / totalBoxes) * 100);
+    
+    dom.avrValue.textContent = state.avrScore + '%';
+    const avrFill = dom.avrMeter.querySelector('.avr-fill');
+    avrFill.style.width = state.avrScore + '%';
+    
+    // Update color range attribute for HSL glow
+    const container = dom.avrMeter.closest('.avr-meter-container');
+    if (state.avrScore < 35) {
+      container.dataset.avrRange = 'low';
+    } else if (state.avrScore < 70) {
+      container.dataset.avrRange = 'mid';
+    } else {
+      container.dataset.avrRange = 'high';
+    }
+  }
+
+  dom.lensMode.addEventListener('change', (e) => {
+    state.lensMode = e.target.value;
+    const isActive = state.lensMode !== 'off';
+    state.lensActive = isActive;
+    dom.lensControl.classList.toggle('active', isActive);
+    dom.lensLegend.classList.toggle('visible', isActive);
+    dom.chatMessages.classList.toggle('lens-active', isActive);
     state.sessionStats.lensToggles++;
+    
+    // Re-render current view to apply lens mode
+    if (state.isCustomChat) {
+      renderCustomChat();
+    } else {
+      renderConversation();
+    }
   });
 
   // ─── CONVERSATION RENDERING (Demo Scenarios) ────────
@@ -276,6 +319,12 @@
 
   function renderSegment(seg) {
     const typeInfo = CONFIDENCE_TYPES[seg.type];
+    
+    // In Quiet mode, filter out uncertain/inferred segments
+    if (state.lensMode === 'quiet' && (seg.type === 'uncertain' || seg.type === 'inferred')) {
+      return ''; // Hide these segments in quiet mode
+    }
+    
     const annotationHTML = seg.annotation ? `
       <div class="annotation-panel">
         <div class="annotation-row">
@@ -1568,6 +1617,72 @@ CRITICAL RULES:
     }
   }
 
+  // ─── COPY GATE MODAL ────────────────────────────────────
+  function initCopyGateModal() {
+    dom.copyGateClose.addEventListener('click', closeCopyGateModal);
+    dom.copyGateCancel.addEventListener('click', closeCopyGateModal);
+    dom.copyGateConfirm.addEventListener('click', confirmCopyGate);
+
+    dom.gateConfirmAvr.addEventListener('change', updateCopyGateButton);
+    dom.gateConfirmReview.addEventListener('change', updateCopyGateButton);
+
+    dom.copyGateModal.addEventListener('click', (e) => {
+      if (e.target === dom.copyGateModal) closeCopyGateModal();
+    });
+  }
+
+  function updateCopyGateButton() {
+    const canProceed = dom.gateConfirmAvr.checked && dom.gateConfirmReview.checked;
+    dom.copyGateConfirm.disabled = !canProceed;
+  }
+
+  function closeCopyGateModal() {
+    dom.copyGateModal.classList.add('hidden');
+    state.pendingCopyContent = null;
+    state.copyGateConfirmed = false;
+    dom.gateConfirmAvr.checked = false;
+    dom.gateConfirmReview.checked = false;
+  }
+
+  function showCopyGateModal(avrScore) {
+    dom.copyGateAvrValue.textContent = avrScore + '%';
+    state.copyGateConfirmed = false;
+    dom.gateConfirmAvr.checked = false;
+    dom.gateConfirmReview.checked = false;
+    dom.copyGateConfirm.disabled = true;
+    dom.copyGateModal.classList.remove('hidden');
+  }
+
+  function confirmCopyGate() {
+    state.copyGateConfirmed = true;
+    closeCopyGateModal();
+    
+    if (state.pendingCopyContent) {
+      navigator.clipboard.writeText(state.pendingCopyContent).then(() => {
+        showToast('✓ Content copied to clipboard', 'success');
+      }).catch(() => {
+        showToast('⚠️ Failed to copy. Try manual selection.', 'warning');
+      });
+    }
+  }
+
+  // ─── SHOW TOAST MESSAGE ─────────────────────────────────
+  function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.classList.add('visible');
+    }, 10);
+    
+    setTimeout(() => {
+      toast.classList.remove('visible');
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
   // ─── DASHBOARD RENDERING ─────────────────────────────
   function renderDashboard() {
     // Sync live stats before rendering
@@ -1815,5 +1930,7 @@ CRITICAL RULES:
   switchScenario('custom');
   initChatInput();
   initAPIModal();
+  initCopyGateModal();
+  updateAVRMeter();
 
 })();
