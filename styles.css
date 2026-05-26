@@ -288,7 +288,7 @@ pre code {
   overflow: hidden;
 }
 
-/* ─── SIDEBAR ─────��─────────────────────────────────── */
+/* ─── SIDEBAR ─────���─────────────────────────────────── */
 #sidebar {
   width: var(--sidebar-width);
   min-width: var(--sidebar-width);
@@ -824,6 +824,140 @@ pre code {
   color: var(--accent);
 }
 
+/* ─── CODE LANGUAGE SELECTOR ────────────────────────── */
+.language-selector {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  position: relative;
+  gap: 8px;
+}
+
+.language-selector-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  font-family: inherit;
+}
+
+.language-selector-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.language-selector-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.language-selector-btn .lang-name {
+  font-weight: 600;
+}
+
+.language-selector-btn .lang-arrow {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.loading-spinner {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.language-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  min-width: 140px;
+  overflow: hidden;
+  margin-top: 4px;
+  display: none;
+}
+
+.language-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  font-family: inherit;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.language-option:hover {
+  background: var(--bg-surface-3);
+  color: var(--text-primary);
+}
+
+.language-option.active {
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.language-option .lang-icon {
+  font-size: 1rem;
+  display: inline-block;
+}
+
+.language-option .lang-text {
+  flex: 1;
+}
+
+/* Pre code block adjustments for language selector */
+pre.has-language-selector {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* Mobile adjustments for language selector */
+@media (max-width: 768px) {
+  .language-selector-btn {
+    padding: 5px 10px;
+    font-size: 0.75rem;
+  }
+
+  .language-dropdown {
+    min-width: 130px;
+  }
+
+  .language-option {
+    padding: 8px 12px;
+    font-size: 0.78rem;
+  }
+
+  .language-option .lang-icon {
+    font-size: 0.9rem;
+  }
+}
 
 
 /* Toggle Switch */
@@ -1078,7 +1212,7 @@ pre code {
   background: rgba(167, 139, 250, 0.12);
 }
 
-/* ─── ANNOTATION TOOLTIP ────────────────────────────── */
+/* ─── ANNOTATION TOOLTIP ───────────────────────────���── */
 .annotation-panel {
   display: none;
   margin-top: 10px;
