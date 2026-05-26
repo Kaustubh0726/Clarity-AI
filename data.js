@@ -150,6 +150,7 @@ const conversations = {
           {
             id: "c2",
             type: "grounded",
+            targetLanguage: "javascript",
             content: `<pre><code class="language-javascript">const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
@@ -183,6 +184,7 @@ function generateTokens(userId, roles = []) {
           {
             id: "c3",
             type: "inferred",
+            targetLanguage: "javascript",
             content: `<pre><code class="language-javascript">// ⚠️ In-memory store — replace with Redis/DB in production
 const refreshTokenStore = new Map();
 
@@ -228,6 +230,7 @@ async function rotateTokens(oldRefreshToken) {
           {
             id: "c4",
             type: "grounded",
+            targetLanguage: "javascript",
             content: `<pre><code class="language-javascript">// Authentication middleware
 function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;

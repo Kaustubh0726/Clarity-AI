@@ -680,8 +680,13 @@
 
     dom.chatMessages.appendChild(el);
 
-    // Attach language selectors to code blocks
-    attachLanguageSelectors(el);
+    // Attach language selectors to code blocks (pass segment for targetLanguage support)
+    const segmentsInEl = el.querySelectorAll('[data-id]');
+    segmentsInEl.forEach(segEl => {
+      const segId = segEl.dataset.id;
+      const segment = msg.segments?.find(s => s.id === segId);
+      attachLanguageSelectors(segEl, segment);
+    });
 
     // Attach segment click handlers
     el.querySelectorAll('.segment[data-type]').forEach(segEl => {
@@ -706,28 +711,49 @@
   }
 
   // ─── ATTACH LANGUAGE SELECTOR TO CODE BLOCKS ──────────
-  function attachLanguageSelectors(container) {
+  function attachLanguageSelectors(container, segment) {
     const codeBlocks = container.querySelectorAll('pre code');
     codeBlocks.forEach((block, index) => {
       const pre = block.parentElement;
       if (!pre || pre.classList.contains('has-language-selector')) return;
       pre.classList.add('has-language-selector');
 
-      // Extract current language
+      // Extract current language from code block
       const langMatch = block.className.match(/language-(\w+)/);
-      const currentLang = langMatch ? langMatch[1] : 'javascript';
+      let currentLang = langMatch ? langMatch[1] : 'javascript';
+      
+      // Use target language from segment if available, otherwise use detected language
+      let displayLang = currentLang;
+      let originalCode = block.textContent;
+      
+      if (segment && segment.targetLanguage) {
+        displayLang = segment.targetLanguage;
+        
+        // If target language differs from current, pre-convert the code
+        if (displayLang !== currentLang) {
+          try {
+            const transpiledCode = codeTranspiler.transpile(originalCode, currentLang, displayLang);
+            block.textContent = transpiledCode;
+            block.className = `language-${displayLang}`;
+            originalCode = transpiledCode;
+          } catch (e) {
+            console.error('[v0] Pre-conversion error:', e);
+            // Fall back to original code if conversion fails
+          }
+        }
+      }
 
       // Create language selector UI
       const selectorHTML = `
         <div class="language-selector">
           <button class="language-selector-btn" data-code-block="${index}">
-            <span class="lang-name">${SUPPORTED_LANGUAGES[currentLang]?.name || capitalize(currentLang)}</span>
+            <span class="lang-name">${SUPPORTED_LANGUAGES[displayLang]?.name || capitalize(displayLang)}</span>
             <span class="lang-arrow">⋯</span>
           </button>
           <div class="language-dropdown" id="lang-dropdown-${index}" style="display: none;">
             ${Object.entries(SUPPORTED_LANGUAGES)
               .map(([key, lang]) => `
-              <button class="language-option ${key === currentLang ? 'active' : ''}" 
+              <button class="language-option ${key === displayLang ? 'active' : ''}" 
                       data-code-block="${index}" 
                       data-target-lang="${key}" 
                       title="${lang.name}">
@@ -745,8 +771,8 @@
 
       // Store code block reference for transpilation
       block.dataset.codeBlockIndex = index;
-      block.dataset.originalCode = block.textContent;
-      block.dataset.currentLanguage = currentLang;
+      block.dataset.originalCode = originalCode;
+      block.dataset.currentLanguage = displayLang;
     });
 
     // Attach event listeners for language switching
@@ -1180,7 +1206,7 @@
     return (builders[category] || builders.general)(topic, prompt);
   }
 
-  // ─── GREETING RESPONSE ───────────────────────────────
+  // ─── GREETING RESPONSE ──────────────────��────────────
   function buildGreetingResponse() {
     return {
       mainResponse: `<p><strong>Hello! Welcome to the Clarity prototype.</strong> I'm Claude, and this interface includes an adaptive evaluation system designed to help you develop calibrated confidence in AI outputs.</p><p>Try asking me anything substantive — a research question, a coding task, a writing request, or a business strategy question. When I respond, you'll see:</p><ul><li><strong>Reasoning Lens</strong> (toggle top-right) — color-coded confidence levels for each claim</li><li><strong>Clickable Annotations</strong> — reasoning, evidence, and counterpoints for each segment</li><li><strong>Clarity Card</strong> — my honest self-assessment at the bottom of every response</li><li><strong>Evaluation Nudges</strong> — contextual prompts encouraging critical thinking</li></ul>`,
@@ -1585,7 +1611,7 @@ class ${className}Handler {
     };
   }
 
-  // ─── BUSINESS RESPONSE BUILDER ───────────────────────
+  // ──�� BUSINESS RESPONSE BUILDER ───────────────────────
   function buildBusinessResponse(topic, prompt) {
     const T = capitalize(topic);
 
