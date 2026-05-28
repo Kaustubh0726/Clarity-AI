@@ -287,7 +287,7 @@ pre code {
   margin-top: 20px;
 }
 
-/* ─── APP LAYOUT ────────────────────────────────────── */
+/* ─── APP LAYOUT ────────────────────────��───────────── */
 #app {
   display: flex;
   height: 100vh;
@@ -972,16 +972,15 @@ pre.has-language-selector {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  background: var(--accent-glow);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-md);
-  margin-bottom: 12px;
-  animation: slideDown 0.3s ease-out;
-  max-width: 100%;
+  padding: 14px 32px;
+  background: linear-gradient(90deg, rgba(217, 119, 87, 0.08) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border-default);
+  margin: 0;
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
+  flex-shrink: 0;
+  animation: slideDown 0.3s ease-out;
 }
 
 @keyframes slideDown {
@@ -1004,11 +1003,11 @@ pre.has-language-selector {
 
 .code-lang-dropdown {
   flex: 0 1 auto;
-  min-width: 120px;
+  min-width: 140px;
   max-width: 200px;
   padding: 8px 12px;
   background: var(--bg-surface-2);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: 0.88rem;
@@ -1016,6 +1015,17 @@ pre.has-language-selector {
   cursor: pointer;
   transition: all var(--duration-fast);
   font-family: inherit;
+}
+
+.code-lang-dropdown:hover {
+  border-color: var(--accent);
+  background: var(--bg-surface-3);
+}
+
+.code-lang-dropdown:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .code-lang-dropdown:hover {
@@ -1042,7 +1052,16 @@ pre.has-language-selector {
     gap: 8px;
   }
 
-  .code-lang-dropdown {
+.code-lang-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.code-lang-dropdown {
     max-width: 100%;
     min-width: 140px;
     font-size: 0.82rem;
@@ -2311,7 +2330,7 @@ pre.has-language-selector {
   50% { transform: scale(1.2); opacity: 1; }
 }
 
-/* ─── API SETTINGS MODAL ───────────────────────��────── */
+/* ─── API SETTINGS MODAL ──────────────────────�����────── */
 .api-settings-btn {
   background: none;
   border: none;
