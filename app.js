@@ -723,27 +723,30 @@
       if (!pre || pre.classList.contains('has-language-selector')) return;
       pre.classList.add('has-language-selector');
 
-      // Extract current language from code block
+      // Extract current language from code block class
       const langMatch = block.className.match(/language-(\w+)/);
       let currentLang = langMatch ? langMatch[1] : 'javascript';
       
-      // Use target language from segment if available, otherwise use detected language
+      // Get source code and source language from segment if available
+      let sourceCode = block.textContent;
+      let sourceLanguage = currentLang;
       let displayLang = currentLang;
-      let originalCode = block.textContent;
-      
-      if (segment && segment.targetLanguage) {
-        displayLang = segment.targetLanguage;
-        
-        // If target language differs from current, pre-convert the code
-        if (displayLang !== currentLang) {
+
+      // If segment has source properties, use them as source of truth
+      if (segment && segment.sourceCode && segment.sourceLanguage) {
+        sourceCode = segment.sourceCode;
+        sourceLanguage = segment.sourceLanguage;
+        displayLang = segment.targetLanguage || sourceLanguage;
+
+        // If display language differs from source, pre-convert the code
+        if (displayLang !== sourceLanguage) {
           try {
-            const transpiledCode = codeTranspiler.transpile(originalCode, currentLang, displayLang);
+            const transpiledCode = codeTranspiler.transpile(sourceCode, sourceLanguage, displayLang);
             block.textContent = transpiledCode;
             block.className = `language-${displayLang}`;
-            originalCode = transpiledCode;
           } catch (e) {
             console.error('[v0] Pre-conversion error:', e);
-            // Fall back to original code if conversion fails
+            // Fall back to source code if conversion fails
           }
         }
       }
@@ -774,9 +777,11 @@
       // Insert selector before code block
       pre.insertAdjacentHTML('beforebegin', selectorHTML);
 
-      // Store code block reference for transpilation
+      // Store source code and source language for transpilation
       block.dataset.codeBlockIndex = index;
-      block.dataset.originalCode = originalCode;
+      block.dataset.sourceCode = sourceCode;
+      block.dataset.sourceLanguage = sourceLanguage;
+      block.dataset.originalCode = sourceCode;  // Keep for backward compatibility
       block.dataset.currentLanguage = displayLang;
     });
 
@@ -822,51 +827,6 @@
     });
   }
 
-  function switchCodeLanguage(codeBlockIndex, targetLang, container) {
-    const codeBlocks = container.querySelectorAll('pre code');
-    const codeBlock = codeBlocks[codeBlockIndex];
-    if (!codeBlock) return;
-
-    const currentLang = codeBlock.dataset.currentLanguage || 'javascript';
-    const originalCode = codeBlock.dataset.originalCode;
-
-    // Show loading state
-    const pre = codeBlock.parentElement;
-    const selector = pre.previousElementSibling;
-    const btn = selector.querySelector('.language-selector-btn');
-    const btnContent = btn.innerHTML;
-    btn.innerHTML = '<span class="loading-spinner">⟳</span> Converting...';
-    btn.disabled = true;
-
-    // Perform transpilation with delay for visual feedback
-    setTimeout(() => {
-      try {
-        const transpiledCode = codeTranspiler.transpile(originalCode, currentLang, targetLang);
-        codeBlock.textContent = transpiledCode;
-        codeBlock.className = `language-${targetLang}`;
-        codeBlock.dataset.currentLanguage = targetLang;
-
-        // Update selector button
-        btn.innerHTML = `<span class="lang-name">${SUPPORTED_LANGUAGES[targetLang].name}</span><span class="lang-arrow">⋯</span>`;
-        btn.disabled = false;
-
-        // Update active state in dropdown
-        const dropdown = selector.nextElementSibling;
-        dropdown.querySelectorAll('.language-option').forEach(opt => {
-          opt.classList.toggle('active', opt.dataset.targetLang === targetLang);
-        });
-
-        // Show success toast
-        showToast(`✓ Converted to ${SUPPORTED_LANGUAGES[targetLang].name}`, 'success');
-      } catch (error) {
-        console.error('[v0] Transpilation error:', error);
-        btn.innerHTML = btnContent;
-        btn.disabled = false;
-        showToast(`⚠️ Conversion to ${SUPPORTED_LANGUAGES[targetLang].name} failed`, 'warning');
-      }
-    }, 500);
-  }
-
   // ─── GLOBAL CODE LANGUAGE SWITCHER ─────────────────────
   function convertAllCodeBlocksInMessage(targetLang) {
     const allCodeBlocks = dom.chatMessages.querySelectorAll('pre code');
@@ -885,15 +845,18 @@
     containers.forEach(container => {
       const codeBlocks = container.querySelectorAll('pre code');
       codeBlocks.forEach((block, index) => {
+        // Always use source language and source code as the source of truth
+        const sourceLanguage = block.dataset.sourceLanguage || block.dataset.currentLanguage || 'javascript';
+        const sourceCode = block.dataset.sourceCode || block.dataset.originalCode || block.textContent;
         const currentLang = block.dataset.currentLanguage || 'javascript';
-        const originalCode = block.dataset.originalCode;
 
         if (targetLang === currentLang) {
           return; // Skip if already in target language
         }
 
         try {
-          const transpiledCode = codeTranspiler.transpile(originalCode, currentLang, targetLang);
+          // Transpile FROM source language, not from current display language
+          const transpiledCode = codeTranspiler.transpile(sourceCode, sourceLanguage, targetLang);
           block.textContent = transpiledCode;
           block.className = `language-${targetLang}`;
           block.dataset.currentLanguage = targetLang;
@@ -906,10 +869,12 @@
             const btn = selector.querySelector('.language-selector-btn');
             btn.innerHTML = `<span class="lang-name">${SUPPORTED_LANGUAGES[targetLang].name}</span><span class="lang-arrow">⋯</span>`;
 
-            const dropdown = selector.nextElementSibling;
-            dropdown.querySelectorAll('.language-option').forEach(opt => {
-              opt.classList.toggle('active', opt.dataset.targetLang === targetLang);
-            });
+            const dropdown = selector.querySelector('.language-dropdown');
+            if (dropdown) {
+              dropdown.querySelectorAll('.language-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.targetLang === targetLang);
+              });
+            }
           }
         } catch (error) {
           console.error('[v0] Global transpilation error:', error);
@@ -945,8 +910,13 @@
     const codeBlock = codeBlocks[codeBlockIndex];
     if (!codeBlock) return;
 
+    // Always use source language and source code as the source of truth
+    const sourceLanguage = codeBlock.dataset.sourceLanguage || codeBlock.dataset.currentLanguage || 'javascript';
+    const sourceCode = codeBlock.dataset.sourceCode || codeBlock.dataset.originalCode || codeBlock.textContent;
     const currentLang = codeBlock.dataset.currentLanguage || 'javascript';
-    const originalCode = codeBlock.dataset.originalCode;
+
+    // Skip if already in target language
+    if (targetLang === currentLang) return;
 
     // Show loading state
     const pre = codeBlock.parentElement;
@@ -959,7 +929,8 @@
     // Perform transpilation with delay for visual feedback
     setTimeout(() => {
       try {
-        const transpiledCode = codeTranspiler.transpile(originalCode, currentLang, targetLang);
+        // Transpile FROM source language, not from current display language
+        const transpiledCode = codeTranspiler.transpile(sourceCode, sourceLanguage, targetLang);
         codeBlock.textContent = transpiledCode;
         codeBlock.className = `language-${targetLang}`;
         codeBlock.dataset.currentLanguage = targetLang;
@@ -969,10 +940,12 @@
         btn.disabled = false;
 
         // Update active state in dropdown
-        const dropdown = selector.nextElementSibling;
-        dropdown.querySelectorAll('.language-option').forEach(opt => {
-          opt.classList.toggle('active', opt.dataset.targetLang === targetLang);
-        });
+        const dropdown = selector.querySelector('.language-dropdown');
+        if (dropdown) {
+          dropdown.querySelectorAll('.language-option').forEach(opt => {
+            opt.classList.toggle('active', opt.dataset.targetLang === targetLang);
+          });
+        }
 
         // Show success toast
         showToast(`✓ Converted to ${SUPPORTED_LANGUAGES[targetLang].name}`, 'success');

@@ -151,7 +151,48 @@ const conversations = {
             id: "c2",
             type: "grounded",
             targetLanguage: "python",
-            content: `<pre><code class="language-javascript">import jwt
+            sourceLanguage: "python",
+            sourceCode: `import jwt
+import uuid
+from datetime import datetime, timedelta
+from functools import wraps
+from flask import request, jsonify
+
+ACCESS_SECRET = "your-access-secret-key"
+REFRESH_SECRET = "your-refresh-secret-key"
+ACCESS_EXPIRY = timedelta(minutes=15)
+REFRESH_EXPIRY = timedelta(days=7)
+
+def generate_tokens(user_id, roles=None):
+  if roles is None:
+    roles = []
+  
+  access_token = jwt.encode(
+    {
+      "sub": user_id,
+      "roles": roles,
+      "type": "access",
+      "exp": datetime.utcnow() + ACCESS_EXPIRY,
+      "iat": datetime.utcnow()
+    },
+    ACCESS_SECRET,
+    algorithm="HS256"
+  )
+  
+  refresh_token = jwt.encode(
+    {
+      "sub": user_id,
+      "type": "refresh",
+      "jti": str(uuid.uuid4()),
+      "exp": datetime.utcnow() + REFRESH_EXPIRY,
+      "iat": datetime.utcnow()
+    },
+    REFRESH_SECRET,
+    algorithm="HS256"
+  )
+  
+  return {"access_token": access_token, "refresh_token": refresh_token}`,
+            content: `<pre><code class="language-python">import jwt
 import uuid
 from datetime import datetime, timedelta
 from functools import wraps
@@ -201,7 +242,40 @@ def generate_tokens(user_id, roles=None):
             id: "c3",
             type: "inferred",
             targetLanguage: "python",
-            content: `<pre><code class="language-javascript"># In-memory store — replace with Redis/Database in production
+            sourceLanguage: "python",
+            sourceCode: `# In-memory store — replace with Redis/Database in production
+refresh_token_store = {}
+
+def store_refresh_token(user_id, token_id):
+  if user_id not in refresh_token_store:
+    refresh_token_store[user_id] = set()
+  refresh_token_store[user_id].add(token_id)
+
+def revoke_refresh_token(user_id, token_id):
+  if user_id in refresh_token_store:
+    refresh_token_store[user_id].discard(token_id)
+
+def is_refresh_token_valid(user_id, token_id):
+  return user_id in refresh_token_store and token_id in refresh_token_store[user_id]
+
+def rotate_tokens(old_refresh_token):
+  try:
+    decoded = jwt.decode(old_refresh_token, REFRESH_SECRET, algorithms=["HS256"])
+    
+    if not is_refresh_token_valid(decoded["sub"], decoded["jti"]):
+      # Possible token reuse attack — revoke ALL user tokens
+      refresh_token_store.pop(decoded["sub"], None)
+      raise Exception("REFRESH_TOKEN_REUSE_DETECTED")
+    
+    revoke_refresh_token(decoded["sub"], decoded["jti"])
+    new_tokens = generate_tokens(decoded["sub"])
+    new_decoded = jwt.decode(new_tokens["refresh_token"], REFRESH_SECRET, algorithms=["HS256"])
+    store_refresh_token(decoded["sub"], new_decoded["jti"])
+    
+    return new_tokens
+  except jwt.ExpiredSignatureError:
+    raise Exception("REFRESH_TOKEN_EXPIRED")`,
+            content: `<pre><code class="language-python"># In-memory store — replace with Redis/Database in production
 refresh_token_store = {}
 
 def store_refresh_token(user_id, token_id):
@@ -243,7 +317,61 @@ def rotate_tokens(old_refresh_token):
             id: "c4",
             type: "grounded",
             targetLanguage: "python",
-            content: `<pre><code class="language-javascript">from flask import Flask, request, jsonify
+            sourceLanguage: "python",
+            sourceCode: `from flask import Flask, request, jsonify
+from functools import wraps
+
+app = Flask(__name__)
+
+def authenticate(f):
+  @wraps(f)
+  def decorated_function(*args, **kwargs):
+    auth_header = request.headers.get("Authorization")
+    
+    if not auth_header or not auth_header.startswith("Bearer "):
+      return jsonify({
+        "error": "MISSING_TOKEN",
+        "message": "Authorization header with Bearer token required"
+      }), 401
+    
+    token = auth_header.split(" ")[1]
+    
+    try:
+      decoded = jwt.decode(token, ACCESS_SECRET, algorithms=["HS256"])
+      if decoded.get("type") != "access":
+        return jsonify({"error": "INVALID_TOKEN_TYPE"}), 401
+      
+      request.user = {"id": decoded["sub"], "roles": decoded.get("roles", [])}
+      return f(*args, **kwargs)
+      
+    except jwt.ExpiredSignatureError:
+      return jsonify({
+        "error": "TOKEN_EXPIRED",
+        "message": "Access token expired. Use refresh token."
+      }), 401
+    except jwt.InvalidTokenError:
+      return jsonify({"error": "INVALID_TOKEN"}), 401
+  
+  return decorated_function
+
+@app.route("/protected", methods=["GET"])
+@authenticate
+def protected_route():
+  return jsonify({"message": f"Hello, {request.user['id']}"}), 200
+
+@app.route("/refresh", methods=["POST"])
+def refresh():
+  try:
+    data = request.get_json()
+    refresh_token = data.get("refresh_token")
+    if not refresh_token:
+      return jsonify({"error": "MISSING_REFRESH_TOKEN"}), 400
+    
+    new_tokens = rotate_tokens(refresh_token)
+    return jsonify(new_tokens), 200
+  except Exception as e:
+    return jsonify({"error": str(e)}), 401`,
+            content: `<pre><code class="language-python">from flask import Flask, request, jsonify
 from functools import wraps
 
 app = Flask(__name__)
