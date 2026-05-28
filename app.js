@@ -468,7 +468,9 @@
     copyGateConfirm: document.getElementById('copy-gate-confirm'),
     gateConfirmAvr: document.getElementById('gate-confirm-avr'),
     gateConfirmReview: document.getElementById('gate-confirm-review'),
-    copyGateAvrValue: document.getElementById('copy-gate-avr-value')
+    copyGateAvrValue: document.getElementById('copy-gate-avr-value'),
+    codeLanguageSwitcher: document.getElementById('code-language-switcher'),
+    codeLangDropdown: document.getElementById('code-lang-dropdown')
   };
 
   // ─── UTILITIES ────────────────────────────────────────
@@ -688,6 +690,9 @@
       attachLanguageSelectors(segEl, segment);
     });
 
+    // Update global code language switcher visibility
+    updateCodeLanguageSwitcherVisibility();
+
     // Attach segment click handlers
     el.querySelectorAll('.segment[data-type]').forEach(segEl => {
       segEl.addEventListener('click', () => {
@@ -814,6 +819,124 @@
       container.querySelectorAll('.language-dropdown').forEach(dd => {
         dd.style.display = 'none';
       });
+    });
+  }
+
+  function switchCodeLanguage(codeBlockIndex, targetLang, container) {
+    const codeBlocks = container.querySelectorAll('pre code');
+    const codeBlock = codeBlocks[codeBlockIndex];
+    if (!codeBlock) return;
+
+    const currentLang = codeBlock.dataset.currentLanguage || 'javascript';
+    const originalCode = codeBlock.dataset.originalCode;
+
+    // Show loading state
+    const pre = codeBlock.parentElement;
+    const selector = pre.previousElementSibling;
+    const btn = selector.querySelector('.language-selector-btn');
+    const btnContent = btn.innerHTML;
+    btn.innerHTML = '<span class="loading-spinner">⟳</span> Converting...';
+    btn.disabled = true;
+
+    // Perform transpilation with delay for visual feedback
+    setTimeout(() => {
+      try {
+        const transpiledCode = codeTranspiler.transpile(originalCode, currentLang, targetLang);
+        codeBlock.textContent = transpiledCode;
+        codeBlock.className = `language-${targetLang}`;
+        codeBlock.dataset.currentLanguage = targetLang;
+
+        // Update selector button
+        btn.innerHTML = `<span class="lang-name">${SUPPORTED_LANGUAGES[targetLang].name}</span><span class="lang-arrow">⋯</span>`;
+        btn.disabled = false;
+
+        // Update active state in dropdown
+        const dropdown = selector.nextElementSibling;
+        dropdown.querySelectorAll('.language-option').forEach(opt => {
+          opt.classList.toggle('active', opt.dataset.targetLang === targetLang);
+        });
+
+        // Show success toast
+        showToast(`✓ Converted to ${SUPPORTED_LANGUAGES[targetLang].name}`, 'success');
+      } catch (error) {
+        console.error('[v0] Transpilation error:', error);
+        btn.innerHTML = btnContent;
+        btn.disabled = false;
+        showToast(`⚠️ Conversion to ${SUPPORTED_LANGUAGES[targetLang].name} failed`, 'warning');
+      }
+    }, 500);
+  }
+
+  // ─── GLOBAL CODE LANGUAGE SWITCHER ─────────────────────
+  function convertAllCodeBlocksInMessage(targetLang) {
+    const allCodeBlocks = dom.chatMessages.querySelectorAll('pre code');
+    if (allCodeBlocks.length === 0) return;
+
+    // Get all unique containers (message divs)
+    const containers = new Set();
+    allCodeBlocks.forEach(block => {
+      const messageDiv = block.closest('.message-content');
+      if (messageDiv) containers.add(messageDiv);
+    });
+
+    let converted = 0;
+    let failed = 0;
+
+    containers.forEach(container => {
+      const codeBlocks = container.querySelectorAll('pre code');
+      codeBlocks.forEach((block, index) => {
+        const currentLang = block.dataset.currentLanguage || 'javascript';
+        const originalCode = block.dataset.originalCode;
+
+        if (targetLang === currentLang) {
+          return; // Skip if already in target language
+        }
+
+        try {
+          const transpiledCode = codeTranspiler.transpile(originalCode, currentLang, targetLang);
+          block.textContent = transpiledCode;
+          block.className = `language-${targetLang}`;
+          block.dataset.currentLanguage = targetLang;
+          converted++;
+
+          // Update individual language selector button
+          const pre = block.parentElement;
+          const selector = pre.previousElementSibling;
+          if (selector && selector.classList.contains('language-selector')) {
+            const btn = selector.querySelector('.language-selector-btn');
+            btn.innerHTML = `<span class="lang-name">${SUPPORTED_LANGUAGES[targetLang].name}</span><span class="lang-arrow">⋯</span>`;
+
+            const dropdown = selector.nextElementSibling;
+            dropdown.querySelectorAll('.language-option').forEach(opt => {
+              opt.classList.toggle('active', opt.dataset.targetLang === targetLang);
+            });
+          }
+        } catch (error) {
+          console.error('[v0] Global transpilation error:', error);
+          failed++;
+        }
+      });
+    });
+
+    if (converted > 0) {
+      showToast(`✓ Converted ${converted} code block(s) to ${SUPPORTED_LANGUAGES[targetLang].name}`, 'success');
+    }
+    if (failed > 0) {
+      showToast(`⚠️ Failed to convert ${failed} code block(s)`, 'warning');
+    }
+  }
+
+  // Show/hide code language switcher based on code blocks
+  function updateCodeLanguageSwitcherVisibility() {
+    const hasCodeBlocks = dom.chatMessages.querySelectorAll('pre code').length > 0;
+    dom.codeLanguageSwitcher.style.display = hasCodeBlocks ? 'flex' : 'none';
+  }
+
+  // Event listener for global code language switcher
+  if (dom.codeLangDropdown) {
+    dom.codeLangDropdown.addEventListener('change', (e) => {
+      const targetLang = e.target.value;
+      convertAllCodeBlocksInMessage(targetLang);
     });
   }
 
