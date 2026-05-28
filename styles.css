@@ -121,7 +121,11 @@ pre {
   border-radius: var(--radius-md);
   padding: 16px 20px;
   overflow-x: auto;
+  overflow-y: visible;
   margin: 12px 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 pre code {
@@ -130,6 +134,9 @@ pre code {
   font-size: 0.85rem;
   line-height: 1.7;
   color: var(--text-primary);
+  word-break: break-word;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 /* ─── SCROLLBAR ─────────────────────────────────────── */
@@ -826,11 +833,12 @@ pre code {
 
 /* ─── CODE LANGUAGE SELECTOR ────────────────────────── */
 .language-selector {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   margin-bottom: 8px;
   position: relative;
   gap: 8px;
+  min-height: 28px;
 }
 
 .language-selector-btn {
@@ -970,6 +978,10 @@ pre.has-language-selector {
   border-radius: var(--radius-md);
   margin-bottom: 12px;
   animation: slideDown 0.3s ease-out;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 @keyframes slideDown {
@@ -991,8 +1003,9 @@ pre.has-language-selector {
 }
 
 .code-lang-dropdown {
-  flex: 1;
-  max-width: 280px;
+  flex: 0 1 auto;
+  min-width: 120px;
+  max-width: 200px;
   padding: 8px 12px;
   background: var(--bg-surface-2);
   border: 1px solid var(--accent);
@@ -1107,10 +1120,12 @@ pre.has-language-selector {
 .chat-messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 32px;
   display: flex;
   flex-direction: column;
   gap: 28px;
+  box-sizing: border-box;
 }
 
 /* User message */
@@ -1121,6 +1136,8 @@ pre.has-language-selector {
   width: 100%;
   margin: 0 auto;
   animation: messageSlideIn 0.5s var(--ease-out);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .message-avatar {
@@ -1150,6 +1167,8 @@ pre.has-language-selector {
 .message-content {
   flex: 1;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .user-message .message-content {
@@ -1160,6 +1179,8 @@ pre.has-language-selector {
   font-size: 0.92rem;
   color: var(--text-primary);
   line-height: 1.65;
+  box-sizing: border-box;
+  overflow-x: auto;
 }
 
 .assistant-message .message-content {
@@ -2290,7 +2311,7 @@ pre.has-language-selector {
   50% { transform: scale(1.2); opacity: 1; }
 }
 
-/* ─── API SETTINGS MODAL ────────────────────────────── */
+/* ─── API SETTINGS MODAL ───────────────────────��────── */
 .api-settings-btn {
   background: none;
   border: none;
