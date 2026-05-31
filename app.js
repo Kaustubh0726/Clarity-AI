@@ -539,7 +539,7 @@
           <span class="dot"></span>
           <span class="dot"></span>
         </div>
-        <span class="typing-text">Claude is thinking & calibrating clarity...</span>
+        <span class="typing-text"></span>
       </div>
     `;
     dom.chatMessages.appendChild(el);
