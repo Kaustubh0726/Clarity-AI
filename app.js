@@ -22,6 +22,391 @@
     API_INITIAL_BACKOFF_MS: 2000
   };
 
+  // ─── SUPPORTED PROGRAMMING LANGUAGES ──────────────────
+  const SUPPORTED_LANGUAGES = {
+    javascript: { name: 'JavaScript', ext: 'js', icon: '⚡' },
+    python: { name: 'Python', ext: 'py', icon: '🐍' },
+    typescript: { name: 'TypeScript', ext: 'ts', icon: '📘' },
+    java: { name: 'Java', ext: 'java', icon: '☕' },
+    cpp: { name: 'C++', ext: 'cpp', icon: '⚙️' },
+    go: { name: 'Go', ext: 'go', icon: '🐹' },
+    rust: { name: 'Rust', ext: 'rs', icon: '🦀' },
+    php: { name: 'PHP', ext: 'php', icon: '🐘' },
+    ruby: { name: 'Ruby', ext: 'rb', icon: '💎' }
+  };
+
+  // ─── CODE TRANSPILATION ENGINE ────────────────────────
+  const codeTranspiler = {
+    // Pattern-based code conversion between languages
+    transpile(code, fromLang, toLang) {
+      if (fromLang === toLang) return code;
+      
+      // Normalize language names
+      fromLang = fromLang.toLowerCase().replace(/-/g, '');
+      toLang = toLang.toLowerCase().replace(/-/g, '');
+      
+      // Start with original code
+      let result = code;
+
+      // JavaScript → Other Languages
+      if (fromLang === 'javascript') {
+        if (toLang === 'python') {
+          result = this.jsToPython(code);
+        } else if (toLang === 'typescript') {
+          result = this.jsToTypeScript(code);
+        } else if (toLang === 'java') {
+          result = this.jsToJava(code);
+        } else if (toLang === 'go') {
+          result = this.jsToGo(code);
+        } else if (toLang === 'rust') {
+          result = this.jsToRust(code);
+        } else if (toLang === 'cpp') {
+          result = this.jsToCpp(code);
+        } else if (toLang === 'php') {
+          result = this.jsToPhp(code);
+        } else if (toLang === 'ruby') {
+          result = this.jsToRuby(code);
+        }
+      }
+      // Python → Other Languages
+      else if (fromLang === 'python') {
+        if (toLang === 'javascript') {
+          result = this.pythonToJs(code);
+        } else if (toLang === 'java') {
+          result = this.pythonToJava(code);
+        } else if (toLang === 'go') {
+          result = this.pythonToGo(code);
+        } else if (toLang === 'rust') {
+          result = this.pythonToRust(code);
+        } else if (toLang === 'cpp') {
+          result = this.pythonToCpp(code);
+        } else if (toLang === 'typescript') {
+          result = this.pythonToJs(code); // Python → JS → TS
+          result = this.jsToTypeScript(result);
+        }
+      }
+      // Java → Other Languages
+      else if (fromLang === 'java') {
+        if (toLang === 'javascript') {
+          result = this.javaToJs(code);
+        } else if (toLang === 'python') {
+          result = this.javaToPython(code);
+        } else if (toLang === 'go') {
+          result = this.javaToGo(code);
+        } else if (toLang === 'cpp') {
+          result = this.javaToCpp(code);
+        } else if (toLang === 'rust') {
+          result = this.javaToRust(code);
+        }
+      }
+      
+      return result;
+    },
+
+    // ─── JavaScript Conversions ─────────────────────────
+    jsToPython(code) {
+      let result = code
+        .replace(/const\s+(\w+)\s*=\s*/g, '$1 = ')
+        .replace(/let\s+(\w+)\s*=\s*/g, '$1 = ')
+        .replace(/var\s+(\w+)\s*=\s*/g, '$1 = ')
+        .replace(/function\s+(\w+)\s*\((.*?)\)\s*\{/g, 'def $1($2):')
+        .replace(/async\s+function\s+(\w+)\s*\((.*?)\)\s*\{/g, 'async def $1($2):')
+        .replace(/=>/g, ':')
+        .replace(/\{/g, ':')
+        .replace(/\}/g, '')
+        .replace(/;/g, '')
+        .replace(/\s+\/\//g, ' #')
+        .replace(/\/\*[\s\S]*?\*\//g, (m) => '"""\n' + m.slice(2, -2).trim() + '\n"""')
+        .replace(/console\.log\((.*?)\)/g, 'print($1)')
+        .replace(/\.length/g, '__len__()')
+        .replace(/\.push\((.*?)\)/g, '.append($1)')
+        .replace(/\.pop\(\)/g, '.pop()')
+        .replace(/\.slice\((.*?)\)/g, '[$1]')
+        .replace(/true/g, 'True')
+        .replace(/false/g, 'False')
+        .replace(/null/g, 'None')
+        .replace(/undefined/g, 'None')
+        .split('\n')
+        .map(line => {
+          const match = line.match(/^(\s*)/);
+          const indent = match ? match[1] : '';
+          if (line.trim() && !line.trim().startsWith('#')) {
+            return indent + line.trim();
+          }
+          return line;
+        })
+        .join('\n');
+      return result;
+    },
+
+    jsToTypeScript(code) {
+      let result = code
+        .replace(/const\s+(\w+)\s*=/g, 'const $1: any =')
+        .replace(/function\s+(\w+)\s*\((.*?)\)\s*\{/g, 'function $1($2): any {');
+      
+      // Add interface for object-like patterns
+      if (code.includes('class ') || code.includes('{')) {
+        result = 'interface Config {\n  [key: string]: any;\n}\n\n' + result;
+      }https://github.com/Kaustubh0726/Clarity-AI/pull/1/conflict?name=app.js&ancestor_oid=db740cfce1526f4b6965a245f6153b5a96820fac&base_oid=b2d7c5d022d58501c4348bb1b458476f5681c59c&head_oid=5aa73c457d9ccd40f30d7e61b73d24cfdc762aef
+      return result;
+    },
+
+    jsToJava(code) {
+      let className = 'MyClass';
+      const classMatch = code.match(/class\s+(\w+)/);
+      if (classMatch) className = classMatch[1];
+
+      let result = `public class ${className} {\n`;
+      result += code
+        .replace(/const\s+(\w+)\s*=\s*async\s*\((.*?)\)\s*=>\s*\{/g, 'public async List<Object> $1($2) throws Exception {')
+        .replace(/const\s+(\w+)\s*=\s*\((.*?)\)\s*=>\s*\{/g, 'public Object $1($2) {')
+        .replace(/async\s+function\s+(\w+)\s*\((.*?)\)\s*\{/g, 'public void $1($2) throws Exception {')
+        .replace(/function\s+(\w+)\s*\((.*?)\)\s*\{/g, 'public void $1($2) {')
+        .replace(/console\.log\((.*?)\)/g, 'System.out.println($1)')
+        .replace(/return\s+(.*?);/g, 'return $1;')
+        .replace(/true/g, 'true')
+        .replace(/false/g, 'false')
+        .replace(/null/g, 'null')
+        .replace(/const\s+(\w+)\s*=/g, 'Object $1 =')
+        .split('\n')
+        .map(line => '  ' + line)
+        .join('\n');
+      result += '\n}';
+      return result;
+    },
+
+    jsToGo(code) {
+      let result = 'package main\n\nimport "fmt"\n\n';
+      result += code
+        .replace(/const\s+(\w+)\s*=\s*\((.*?)\)\s*=>\s*\{/g, 'func $1($2) interface{} {')
+        .replace(/function\s+(\w+)\s*\((.*?)\)\s*\{/g, 'func $1($2) {')
+        .replace(/console\.log\((.*?)\)/g, 'fmt.Println($1)')
+        .replace(/return\s+(.*?);/g, 'return $1')
+        .replace(/true/g, 'true')
+        .replace(/false/g, 'false')
+        .replace(/null/g, 'nil')
+        .replace(/const\s+(\w+)\s*=/g, '$1 :=')
+        .replace(/;/g, '');
+      return result;
+    },
+
+    jsToRust(code) {
+      let result = 'fn main() {\n';
+      result += code
+        .replace(/const\s+(\w+)\s*=\s*\((.*?)\)\s*=>\s*\{/g, 'fn $1($2) {')
+        .replace(/function\s+(\w+)\s*\((.*?)\)\s*\{/g, 'fn $1($2) {')
+        .replace(/console\.log\((.*?)\)/g, 'println!("{}",  $1)')
+        .replace(/let\s+(\w+)\s*=/g, 'let $1 =')
+        .replace(/true/g, 'true')
+        .replace(/false/g, 'false')
+        .replace(/null/g, 'None')
+        .split('\n')
+        .map(line => '    ' + line)
+        .join('\n');
+      result += '\n}';
+      return result;
+    },
+
+    jsToCpp(code) {
+      let result = '#include <iostream>\nusing namespace std;\n\nint main() {\n';
+      result += code
+        .replace(/const\s+(\w+)\s*=\s*\((.*?)\)\s*=>\s*\{/g, 'auto $1 = [$2]() {')
+        .replace(/function\s+(\w+)\s*\((.*?)\)\s*\{/g, 'void $1($2) {')
+        .replace(/console\.log\((.*?)\)/g, 'cout << $1 << endl')
+        .replace(/return\s+(.*?);/g, 'return $1;')
+        .replace(/true/g, 'true')
+        .replace(/false/g, 'false')
+        .replace(/null/g, 'nullptr')
+        .split('\n')
+        .map(line => '    ' + line)
+        .join('\n');
+      result += '\n    return 0;\n}';
+      return result;
+    },
+
+    jsToPhp(code) {
+      let result = '<?php\n\n';
+      result += code
+        .replace(/const\s+(\w+)\s*=/g, '$$1 =')
+        .replace(/function\s+(\w+)\s*\((.*?)\)\s*\{/g, 'function $1($2) {')
+        .replace(/console\.log\((.*?)\)/g, 'echo $1')
+        .replace(/return\s+(.*?);/g, 'return $1;')
+        .replace(/true/g, 'true')
+        .replace(/false/g, 'false')
+        .replace(/null/g, 'null')
+        .replace(/;/g, ';')
+        .split('\n')
+        .join('\n');
+      result += '\n?>';
+      return result;
+    },
+
+    jsToRuby(code) {
+      let result = code
+        .replace(/const\s+(\w+)\s*=/g, '$1 =')
+        .replace(/let\s+(\w+)\s*=/g, '$1 =')
+        .replace(/function\s+(\w+)\s*\((.*?)\)\s*\{/g, 'def $1($2)')
+        .replace(/\s*\}/g, 'end')
+        .replace(/console\.log\((.*?)\)/g, 'puts $1')
+        .replace(/return\s+(.*?);/g, 'return $1')
+        .replace(/true/g, 'true')
+        .replace(/false/g, 'false')
+        .replace(/null/g, 'nil')
+        .replace(/;/g, '');
+      return result;
+    },
+
+    // ─── Python Conversions ────────────────────────────
+    pythonToJs(code) {
+      let result = code
+        .replace(/^def\s+(\w+)\s*\((.*?)\):/gm, 'function $1($2) {')
+        .replace(/^(\w+)\s*=/gm, 'const $1 =')
+        .replace(/print\((.*?)\)/g, 'console.log($1)')
+        .replace(/True/g, 'true')
+        .replace(/False/g, 'false')
+        .replace(/None/g, 'null')
+        .replace(/\s+#/g, ' //')
+        .split('\n')
+        .map((line, i) => {
+          if (line.trim() && line.trim() !== 'end') return line.replace(/:\s*$/, ' {');
+          return line;
+        })
+        .join('\n');
+      return result + '}';
+    },
+
+    pythonToJava(code) {
+      let result = 'public class PythonClass {\n';
+      result += code
+        .replace(/^def\s+(\w+)\s*\((.*?)\):/gm, '  public void $1($2) {')
+        .replace(/^(\w+)\s*=/gm, '  Object $1 =')
+        .replace(/print\((.*?)\)/g, 'System.out.println($1)')
+        .replace(/True/g, 'true')
+        .replace(/False/g, 'false')
+        .replace(/None/g, 'null')
+        .replace(/\s+#/g, ' //')
+        .split('\n')
+        .map(line => line.trim() ? line : '')
+        .filter(line => line)
+        .join('\n  ');
+      result += '\n}';
+      return result;
+    },
+
+    pythonToGo(code) {
+      let result = 'package main\n\nimport "fmt"\n\n';
+      result += code
+        .replace(/^def\s+(\w+)\s*\((.*?)\):/gm, 'func $1($2) {')
+        .replace(/^(\w+)\s*=/gm, '$1 :=')
+        .replace(/print\((.*?)\)/g, 'fmt.Println($1)')
+        .replace(/True/g, 'true')
+        .replace(/False/g, 'false')
+        .replace(/None/g, 'nil')
+        .replace(/\s+#/g, ' //');
+      return result;
+    },
+
+    pythonToRust(code) {
+      let result = 'fn main() {\n';
+      result += code
+        .replace(/^def\s+(\w+)\s*\((.*?)\):/gm, 'fn $1($2) {')
+        .replace(/^(\w+)\s*=/gm, 'let $1 =')
+        .replace(/print\((.*?)\)/g, 'println!("{}",  $1)')
+        .replace(/True/g, 'true')
+        .replace(/False/g, 'false')
+        .replace(/None/g, 'None')
+        .split('\n')
+        .map(line => '    ' + line)
+        .join('\n');
+      result += '\n}';
+      return result;
+    },
+
+    pythonToCpp(code) {
+      let result = '#include <iostream>\nusing namespace std;\n\nint main() {\n';
+      result += code
+        .replace(/^def\s+(\w+)\s*\((.*?)\):/gm, 'void $1($2) {')
+        .replace(/^(\w+)\s*=/gm, 'auto $1 =')
+        .replace(/print\((.*?)\)/g, 'cout << $1 << endl')
+        .replace(/True/g, 'true')
+        .replace(/False/g, 'false')
+        .replace(/None/g, 'nullptr')
+        .split('\n')
+        .map(line => '    ' + line)
+        .join('\n');
+      result += '\n    return 0;\n}';
+      return result;
+    },
+
+    // ─── Java Conversions ───────────────────────────────
+    javaToJs(code) {
+      let result = code
+        .replace(/public\s+(void|Object|String|List)\s+(\w+)\s*\((.*?)\)\s*\{/g, 'function $2($3) {')
+        .replace(/Object\s+(\w+)\s*=/g, 'const $1 =')
+        .replace(/System\.out\.println\((.*?)\)/g, 'console.log($1)')
+        .replace(/return\s+(.*?);/g, 'return $1;')
+        .replace(/true/g, 'true')
+        .replace(/false/g, 'false')
+        .replace(/null/g, 'null')
+        .replace(/class\s+\w+\s*\{/g, '');
+      return result;
+    },
+
+    javaToPython(code) {
+      let result = code
+        .replace(/public\s+(void|Object)\s+(\w+)\s*\((.*?)\)\s*\{/g, 'def $2($3):')
+        .replace(/Object\s+(\w+)\s*=/g, '$1 =')
+        .replace(/System\.out\.println\((.*?)\)/g, 'print($1)')
+        .replace(/return\s+(.*?);/g, 'return $1')
+        .replace(/true/g, 'True')
+        .replace(/false/g, 'False')
+        .replace(/null/g, 'None')
+        .replace(/class\s+\w+\s*\{/g, '')
+        .replace(/\}/g, '');
+      return result;
+    },
+
+    javaToGo(code) {
+      let result = 'package main\n\nimport "fmt"\n\n';
+      result += code
+        .replace(/public\s+(void|Object)\s+(\w+)\s*\((.*?)\)\s*\{/g, 'func $2($3) {')
+        .replace(/Object\s+(\w+)\s*=/g, '$1 :=')
+        .replace(/System\.out\.println\((.*?)\)/g, 'fmt.Println($1)')
+        .replace(/return\s+(.*?);/g, 'return $1')
+        .replace(/true/g, 'true')
+        .replace(/false/g, 'false')
+        .replace(/null/g, 'nil')
+        .replace(/class\s+\w+\s*\{/g, '');
+      return result;
+    },
+
+    javaToCpp(code) {
+      let result = '#include <iostream>\nusing namespace std;\n\n';
+      result += code
+        .replace(/public\s+(void|Object)\s+(\w+)\s*\((.*?)\)\s*\{/g, 'void $2($3) {')
+        .replace(/Object\s+(\w+)\s*=/g, 'auto $1 =')
+        .replace(/System\.out\.println\((.*?)\)/g, 'cout << $1 << endl')
+        .replace(/return\s+(.*?);/g, 'return $1;')
+        .replace(/class\s+\w+\s*\{/g, '');
+      return result;
+    },
+
+    javaToRust(code) {
+      let result = 'fn main() {\n';
+      result += code
+        .replace(/public\s+(void|Object)\s+(\w+)\s*\((.*?)\)\s*\{/g, 'fn $2($3) {')
+        .replace(/Object\s+(\w+)\s*=/g, 'let $1 =')
+        .replace(/System\.out\.println\((.*?)\)/g, 'println!("{}",  $1)')
+        .replace(/return\s+(.*?);/g, 'return $1')
+        .replace(/class\s+\w+\s*\{/g, '')
+        .split('\n')
+        .map(line => '    ' + line)
+        .join('\n');
+      result += '\n}';
+      return result;
+    }
+  };
+
   // ─── STATE ────────────────────────────────────────────
   const state = {
     currentScenario: 'research',
@@ -35,6 +420,8 @@
     apiMode: 'simulator',
     apiKey: '',
     isGenerating: false,
+    pendingCopyContent: null,
+    copyGateConfirmed: false,
     sessionStats: {
       lensToggles: 0,
       cardExpansions: 0,
@@ -50,7 +437,7 @@
     chatMessages: document.getElementById('chat-messages'),
     chatView: document.getElementById('chat-view'),
     dashboardView: document.getElementById('dashboard-view'),
-    lensToggle: document.getElementById('lens-toggle'),
+    lensMode: document.getElementById('lens-mode'),
     lensControl: document.getElementById('reasoning-lens-control'),
     lensLegend: document.getElementById('lens-legend'),
     convTitle: document.getElementById('conversation-title'),
@@ -69,7 +456,16 @@
     apiKeyInput: document.getElementById('api-key-input'),
     toggleKeyVis: document.getElementById('toggle-key-vis'),
     apiStatusDot: document.getElementById('api-status-dot'),
-    apiStatusText: document.getElementById('api-status-text')
+    apiStatusText: document.getElementById('api-status-text'),
+    avrMeter: document.getElementById('avr-meter'),
+    avrValue: document.getElementById('avr-value'),
+    copyGateModal: document.getElementById('copy-gate-modal'),
+    copyGateClose: document.getElementById('copy-gate-close'),
+    copyGateCancel: document.getElementById('copy-gate-cancel'),
+    copyGateConfirm: document.getElementById('copy-gate-confirm'),
+    gateConfirmAvr: document.getElementById('gate-confirm-avr'),
+    gateConfirmReview: document.getElementById('gate-confirm-review'),
+    copyGateAvrValue: document.getElementById('copy-gate-avr-value')
   };
 
   // ─── UTILITIES ────────────────────────────────────────
@@ -150,14 +546,45 @@
     btn.addEventListener('click', () => switchScenario(btn.dataset.scenario));
   });
 
-  // ─── REASONING LENS TOGGLE ───────────────────────────
-  dom.lensToggle.addEventListener('change', () => {
-    state.lensActive = dom.lensToggle.checked;
-    dom.lensControl.classList.toggle('active', state.lensActive);
-    dom.lensLegend.classList.toggle('visible', state.lensActive);
-    dom.chatMessages.classList.toggle('lens-active', state.lensActive);
+  // ─── REASONING LENS MODE SELECTOR ──────────────────────
+  function updateAVRMeter() {
+    const checkedBoxes = Object.values(state.checklistState).filter(v => v).length;
+    const totalBoxes = Object.keys(state.checklistState).length || 1;
+    state.avrScore = Math.round((checkedBoxes / totalBoxes) * 100);
+    
+    dom.avrValue.textContent = state.avrScore + '%';
+    const avrFill = dom.avrMeter.querySelector('.avr-fill');
+    avrFill.style.width = state.avrScore + '%';
+    
+    // Update color range attribute for HSL glow
+    const container = dom.avrMeter.closest('.avr-meter-container');
+    if (state.avrScore < 35) {
+      container.dataset.avrRange = 'low';
+    } else if (state.avrScore < 70) {
+      container.dataset.avrRange = 'mid';
+    } else {
+      container.dataset.avrRange = 'high';
+    }
+  }
+
+if (dom.lensMode) {
+  dom.lensMode.addEventListener('change', (e) => {
+    state.lensMode = e.target.value;
+    const isActive = state.lensMode !== 'off';
+    state.lensActive = isActive;
+    dom.lensControl.classList.toggle('active', isActive);
+    dom.lensLegend.classList.toggle('visible', isActive);
+    dom.chatMessages.classList.toggle('lens-active', isActive);
     state.sessionStats.lensToggles++;
+    
+    // Re-render current view to apply lens mode
+    if (state.isCustomChat) {
+      renderCustomChat();
+    } else {
+      renderConversation();
+    }
   });
+}
 
   // ─── CONVERSATION RENDERING (Demo Scenarios) ────────
   function renderConversation() {
@@ -266,6 +693,9 @@
 
     dom.chatMessages.appendChild(el);
 
+    // Attach language selectors to code blocks
+    attachLanguageSelectors(el);
+
     // Attach segment click handlers
     el.querySelectorAll('.segment[data-type]').forEach(segEl => {
       segEl.addEventListener('click', () => {
@@ -288,8 +718,145 @@
     }
   }
 
+  // ─── ATTACH LANGUAGE SELECTOR TO CODE BLOCKS ──────────
+  function attachLanguageSelectors(container) {
+    const codeBlocks = container.querySelectorAll('pre code');
+    codeBlocks.forEach((block, index) => {
+      const pre = block.parentElement;
+      if (!pre || pre.classList.contains('has-language-selector')) return;
+      pre.classList.add('has-language-selector');
+
+      // Extract current language
+      const langMatch = block.className.match(/language-(\w+)/);
+      const currentLang = langMatch ? langMatch[1] : 'javascript';
+
+      // Create language selector UI
+      const selectorHTML = `
+        <div class="language-selector">
+          <button class="language-selector-btn" data-code-block="${index}">
+            <span class="lang-name">${SUPPORTED_LANGUAGES[currentLang]?.name || capitalize(currentLang)}</span>
+            <span class="lang-arrow">⋯</span>
+          </button>
+          <div class="language-dropdown" id="lang-dropdown-${index}" style="display: none;">
+            ${Object.entries(SUPPORTED_LANGUAGES)
+              .map(([key, lang]) => `
+              <button class="language-option ${key === currentLang ? 'active' : ''}" 
+                      data-code-block="${index}" 
+                      data-target-lang="${key}" 
+                      title="${lang.name}">
+                <span class="lang-icon">${lang.icon}</span>
+                <span class="lang-text">${lang.name}</span>
+              </button>
+            `)
+              .join('')}
+          </div>
+        </div>
+      `;
+
+      // Insert selector before code block
+      pre.insertAdjacentHTML('beforebegin', selectorHTML);
+
+      // Store code block reference for transpilation
+      block.dataset.codeBlockIndex = index;
+      block.dataset.originalCode = block.textContent;
+      block.dataset.currentLanguage = currentLang;
+    });
+
+    // Attach event listeners for language switching
+    const selectors = container.querySelectorAll('.language-selector-btn');
+    selectors.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const index = btn.dataset.codeBlock;
+        const dropdown = document.getElementById(`lang-dropdown-${index}`);
+        const isOpen = dropdown.style.display !== 'none';
+        
+        // Close all other dropdowns
+        container.querySelectorAll('.language-dropdown').forEach(dd => {
+          dd.style.display = 'none';
+        });
+        
+        // Toggle current dropdown
+        dropdown.style.display = isOpen ? 'none' : 'block';
+      });
+    });
+
+    // Language option selection
+    const options = container.querySelectorAll('.language-option');
+    options.forEach(option => {
+      option.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const codeBlockIndex = option.dataset.codeBlock;
+        const targetLang = option.dataset.targetLang;
+        switchCodeLanguage(codeBlockIndex, targetLang, container);
+        
+        // Close dropdown
+        const dropdown = document.getElementById(`lang-dropdown-${codeBlockIndex}`);
+        dropdown.style.display = 'none';
+      });
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', () => {
+      container.querySelectorAll('.language-dropdown').forEach(dd => {
+        dd.style.display = 'none';
+      });
+    });
+  }
+
+  function switchCodeLanguage(codeBlockIndex, targetLang, container) {
+    const codeBlocks = container.querySelectorAll('pre code');
+    const codeBlock = codeBlocks[codeBlockIndex];
+    if (!codeBlock) return;
+
+    const currentLang = codeBlock.dataset.currentLanguage || 'javascript';
+    const originalCode = codeBlock.dataset.originalCode;
+
+    // Show loading state
+    const pre = codeBlock.parentElement;
+    const selector = pre.previousElementSibling;
+    const btn = selector.querySelector('.language-selector-btn');
+    const btnContent = btn.innerHTML;
+    btn.innerHTML = '<span class="loading-spinner">⟳</span> Converting...';
+    btn.disabled = true;
+
+    // Perform transpilation with delay for visual feedback
+    setTimeout(() => {
+      try {
+        const transpiledCode = codeTranspiler.transpile(originalCode, currentLang, targetLang);
+        codeBlock.textContent = transpiledCode;
+        codeBlock.className = `language-${targetLang}`;
+        codeBlock.dataset.currentLanguage = targetLang;
+
+        // Update selector button
+        btn.innerHTML = `<span class="lang-name">${SUPPORTED_LANGUAGES[targetLang].name}</span><span class="lang-arrow">⋯</span>`;
+        btn.disabled = false;
+
+        // Update active state in dropdown
+        const dropdown = selector.nextElementSibling;
+        dropdown.querySelectorAll('.language-option').forEach(opt => {
+          opt.classList.toggle('active', opt.dataset.targetLang === targetLang);
+        });
+
+        // Show success toast
+        showToast(`✓ Converted to ${SUPPORTED_LANGUAGES[targetLang].name}`, 'success');
+      } catch (error) {
+        console.error('[v0] Transpilation error:', error);
+        btn.innerHTML = btnContent;
+        btn.disabled = false;
+        showToast(`⚠️ Conversion to ${SUPPORTED_LANGUAGES[targetLang].name} failed`, 'warning');
+      }
+    }, 500);
+  }
+
   function renderSegment(seg) {
     const typeInfo = CONFIDENCE_TYPES[seg.type];
+    
+    // In Quiet mode, filter out uncertain/inferred segments
+    if (state.lensMode === 'quiet' && (seg.type === 'uncertain' || seg.type === 'inferred')) {
+      return ''; // Hide these segments in quiet mode
+    }
+    
     const annotationHTML = seg.annotation ? `
       <div class="annotation-panel">
         <div class="annotation-row">
@@ -1582,6 +2149,72 @@ CRITICAL RULES:
     }
   }
 
+  // ─── COPY GATE MODAL ────────────────────────────────────
+  function initCopyGateModal() {
+    dom.copyGateClose.addEventListener('click', closeCopyGateModal);
+    dom.copyGateCancel.addEventListener('click', closeCopyGateModal);
+    dom.copyGateConfirm.addEventListener('click', confirmCopyGate);
+
+    dom.gateConfirmAvr.addEventListener('change', updateCopyGateButton);
+    dom.gateConfirmReview.addEventListener('change', updateCopyGateButton);
+
+    dom.copyGateModal.addEventListener('click', (e) => {
+      if (e.target === dom.copyGateModal) closeCopyGateModal();
+    });
+  }
+
+  function updateCopyGateButton() {
+    const canProceed = dom.gateConfirmAvr.checked && dom.gateConfirmReview.checked;
+    dom.copyGateConfirm.disabled = !canProceed;
+  }
+
+  function closeCopyGateModal() {
+    dom.copyGateModal.classList.add('hidden');
+    state.pendingCopyContent = null;
+    state.copyGateConfirmed = false;
+    dom.gateConfirmAvr.checked = false;
+    dom.gateConfirmReview.checked = false;
+  }
+
+  function showCopyGateModal(avrScore) {
+    dom.copyGateAvrValue.textContent = avrScore + '%';
+    state.copyGateConfirmed = false;
+    dom.gateConfirmAvr.checked = false;
+    dom.gateConfirmReview.checked = false;
+    dom.copyGateConfirm.disabled = true;
+    dom.copyGateModal.classList.remove('hidden');
+  }
+
+  function confirmCopyGate() {
+    state.copyGateConfirmed = true;
+    closeCopyGateModal();
+    
+    if (state.pendingCopyContent) {
+      navigator.clipboard.writeText(state.pendingCopyContent).then(() => {
+        showToast('✓ Content copied to clipboard', 'success');
+      }).catch(() => {
+        showToast('⚠️ Failed to copy. Try manual selection.', 'warning');
+      });
+    }
+  }
+
+  // ─── SHOW TOAST MESSAGE ─────────────────────────────────
+  function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.classList.add('visible');
+    }, 10);
+    
+    setTimeout(() => {
+      toast.classList.remove('visible');
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
   // ─── DASHBOARD RENDERING ─────────────────────────────
   function renderDashboard() {
     // Sync live stats before rendering
@@ -1829,5 +2462,7 @@ CRITICAL RULES:
   switchScenario('custom');
   initChatInput();
   initAPIModal();
+  initCopyGateModal();
+  updateAVRMeter();
 
 })();
