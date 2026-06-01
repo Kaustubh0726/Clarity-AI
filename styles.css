@@ -588,6 +588,29 @@ pre code {
   box-shadow: 0 0 20px var(--accent-glow);
 }
 
+/* Subtle animation for first activation */
+.reasoning-lens-control.lens-animate {
+  animation: lensFadeIn 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes lensFadeIn {
+  0% {
+    box-shadow: 0 0 0 var(--accent-glow-strong);
+    opacity: 0.2;
+    transform: scale(0.98);
+  }
+  60% {
+    box-shadow: 0 0 32px var(--accent-glow-strong);
+    opacity: 1;
+    transform: scale(1.03);
+  }
+  100% {
+    box-shadow: 0 0 20px var(--accent-glow);
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .lens-indicator {
   display: flex;
   align-items: center;
