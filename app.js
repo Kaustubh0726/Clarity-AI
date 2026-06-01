@@ -26,7 +26,7 @@
   const state = {
     currentScenario: 'research',
     currentView: 'chat',
-    lensActive: false,
+    lensActive: true,
     expandedCards: new Set(),
     expandedAnnotations: new Set(),
     dashboardRendered: false,
@@ -88,6 +88,20 @@
     setTimeout(() => { dom.onboarding.style.display = 'none'; }, 500);
   });
 
+  // ─── AUTO-ACTIVATE REASONING LENS ON LOAD ─────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    // Set Reasoning Lens dropdown to 'full' and UI to active
+    if (dom.lensMode) dom.lensMode.value = 'full';
+    if (dom.lensControl) dom.lensControl.classList.add('active', 'lens-animate');
+    if (dom.lensLegend) dom.lensLegend.classList.add('visible');
+    if (dom.chatMessages) dom.chatMessages.classList.add('lens-active');
+    // Remove animation class after animation ends
+    if (dom.lensControl) {
+      dom.lensControl.addEventListener('animationend', () => {
+        dom.lensControl.classList.remove('lens-animate');
+      }, { once: true });
+    }
+  });
   // ─── VIEW SWITCHING ──────────────────────────────────
   function switchView(view) {
     state.currentView = view;
@@ -364,7 +378,7 @@
           <div class="clarity-card-title">
             <span class="clarity-card-icon">◈</span>
             <span class="clarity-card-text">Clarity Card</span>
-            <span class="clarity-card-hint">Claude's self-assessment of this response</span>
+            <span class="clarity-card-hint">Clarity AI's self-assessment of this response</span>
           </div>
           <span class="clarity-card-chevron">▾</span>
         </div>
@@ -615,10 +629,10 @@
   // ─── GREETING RESPONSE ───────────────────────────────
   function buildGreetingResponse() {
     return {
-      mainResponse: `<p><strong>Hello! Welcome to the Clarity prototype.</strong> I'm Claude, and this interface includes an adaptive evaluation system designed to help you develop calibrated confidence in AI outputs.</p><p>Try asking me anything substantive — a research question, a coding task, a writing request, or a business strategy question. When I respond, you'll see:</p><ul><li><strong>Reasoning Lens</strong> (toggle top-right) — color-coded confidence levels for each claim</li><li><strong>Clickable Annotations</strong> — reasoning, evidence, and counterpoints for each segment</li><li><strong>Clarity Card</strong> — my honest self-assessment at the bottom of every response</li><li><strong>Evaluation Nudges</strong> — contextual prompts encouraging critical thinking</li></ul>`,
+      mainResponse: `<p><strong>Hello! Welcome to the Clarity prototype.</strong> I'm Clarity AI, and this interface includes an adaptive evaluation system designed to help you develop calibrated confidence in AI outputs.</p><p>Try asking me anything substantive — a research question, a coding task, a writing request, or a business strategy question. When I respond, you'll see:</p><ul><li><strong>Reasoning Lens</strong> (toggle top-right) — color-coded confidence levels for each claim</li><li><strong>Clickable Annotations</strong> — reasoning, evidence, and counterpoints for each segment</li><li><strong>Clarity Card</strong> — my honest self-assessment at the bottom of every response</li><li><strong>Evaluation Nudges</strong> — contextual prompts encouraging critical thinking</li></ul>`,
       segments: [{
         id: 'g1', type: 'grounded',
-        content: `<p><strong>Hello! Welcome to the Clarity prototype.</strong> I'm Claude, and this interface includes an adaptive evaluation system designed to help you develop calibrated confidence in AI outputs.</p><p>Try asking me anything substantive — a research question, a coding task, a writing request, or a business strategy question. When I respond, you'll see:</p><ul><li><strong>Reasoning Lens</strong> (toggle top-right) — color-coded confidence levels for each claim</li><li><strong>Clickable Annotations</strong> — reasoning, evidence, and counterpoints for each segment</li><li><strong>Clarity Card</strong> — my honest self-assessment at the bottom of every response</li><li><strong>Evaluation Nudges</strong> — contextual prompts encouraging critical thinking</li></ul>`,
+        content: `<p><strong>Hello! Welcome to the Clarity prototype.</strong> I'm Clarity AI, and this interface includes an adaptive evaluation system designed to help you develop calibrated confidence in AI outputs.</p><p>Try asking me anything substantive — a research question, a coding task, a writing request, or a business strategy question. When I respond, you'll see:</p><ul><li><strong>Reasoning Lens</strong> (toggle top-right) — color-coded confidence levels for each claim</li><li><strong>Clickable Annotations</strong> — reasoning, evidence, and counterpoints for each segment</li><li><strong>Clarity Card</strong> — my honest self-assessment at the bottom of every response</li><li><strong>Evaluation Nudges</strong> — contextual prompts encouraging critical thinking</li></ul>`,
         annotation: {
           reasoning: 'This is a factual description of the Clarity system features, all of which are implemented in this prototype.',
           evidence: 'Product specification and feature documentation for the Clarity prototype',
@@ -1205,7 +1219,7 @@ class ${className}Handler {
   // responses with structured self-critique JSON.
   // ═══════════════════════════════════════════════════════
 
-  const GEMINI_SYSTEM_PROMPT = `You are "Claude", a world-class AI assistant. The user is asking you a question or giving you a task. You MUST do TWO things:
+  const GEMINI_SYSTEM_PROMPT = `You are "Clarity AI", a world-class AI assistant. The user is asking you a question or giving you a task. You MUST do TWO things:
 
 STEP 1: ACTUALLY ANSWER THE USER'S QUESTION FULLY AND ACCURATELY.
 - If they ask you to draft an email, draft the ACTUAL complete email they can copy-paste.
