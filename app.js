@@ -411,7 +411,7 @@
   const state = {
     currentScenario: 'research',
     currentView: 'chat',
-    lensActive: false,
+    lensActive: true,
     lensMode: 'full',
     avrScore: 0,
     checklistState: {},
@@ -468,9 +468,7 @@
     copyGateConfirm: document.getElementById('copy-gate-confirm'),
     gateConfirmAvr: document.getElementById('gate-confirm-avr'),
     gateConfirmReview: document.getElementById('gate-confirm-review'),
-    copyGateAvrValue: document.getElementById('copy-gate-avr-value'),
-    codeLanguageSwitcher: document.getElementById('code-language-switcher'),
-    codeLangDropdown: document.getElementById('code-lang-dropdown')
+    copyGateAvrValue: document.getElementById('copy-gate-avr-value')
   };
 
   // ─── UTILITIES ────────────────────────────────────────
@@ -487,6 +485,21 @@
   dom.onboardingBtn.addEventListener('click', () => {
     dom.onboarding.classList.add('hidden');
     setTimeout(() => { dom.onboarding.style.display = 'none'; }, 500);
+  });
+
+  // ─── AUTO-ACTIVATE REASONING LENS ON LOAD ─────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    // Set Reasoning Lens dropdown to 'full' and UI to active
+    if (dom.lensMode) dom.lensMode.value = 'full';
+    if (dom.lensControl) dom.lensControl.classList.add('active', 'lens-animate');
+    if (dom.lensLegend) dom.lensLegend.classList.add('visible');
+    if (dom.chatMessages) dom.chatMessages.classList.add('lens-active');
+    // Remove animation class after animation ends
+    if (dom.lensControl) {
+      dom.lensControl.addEventListener('animationend', () => {
+        dom.lensControl.classList.remove('lens-animate');
+      }, { once: true });
+    }
   });
 
   // ─── VIEW SWITCHING ──────────────────────────────────
@@ -682,16 +695,8 @@
 
     dom.chatMessages.appendChild(el);
 
-    // Attach language selectors to code blocks (pass segment for targetLanguage support)
-    const segmentsInEl = el.querySelectorAll('[data-id]');
-    segmentsInEl.forEach(segEl => {
-      const segId = segEl.dataset.id;
-      const segment = msg.segments?.find(s => s.id === segId);
-      attachLanguageSelectors(segEl, segment);
-    });
-
-    // Update global code language switcher visibility
-    updateCodeLanguageSwitcherVisibility();
+    // Attach language selectors to code blocks
+    attachLanguageSelectors(el);
 
     // Attach segment click handlers
     el.querySelectorAll('.segment[data-type]').forEach(segEl => {
@@ -716,52 +721,28 @@
   }
 
   // ─── ATTACH LANGUAGE SELECTOR TO CODE BLOCKS ──────────
-  function attachLanguageSelectors(container, segment) {
+  function attachLanguageSelectors(container) {
     const codeBlocks = container.querySelectorAll('pre code');
     codeBlocks.forEach((block, index) => {
       const pre = block.parentElement;
       if (!pre || pre.classList.contains('has-language-selector')) return;
       pre.classList.add('has-language-selector');
 
-      // Extract current language from code block class
+      // Extract current language
       const langMatch = block.className.match(/language-(\w+)/);
-      let currentLang = langMatch ? langMatch[1] : 'javascript';
-      
-      // Get source code and source language from segment if available
-      let sourceCode = block.textContent;
-      let sourceLanguage = currentLang;
-      let displayLang = currentLang;
-
-      // If segment has source properties, use them as source of truth
-      if (segment && segment.sourceCode && segment.sourceLanguage) {
-        sourceCode = segment.sourceCode;
-        sourceLanguage = segment.sourceLanguage;
-        displayLang = segment.targetLanguage || sourceLanguage;
-
-        // If display language differs from source, pre-convert the code
-        if (displayLang !== sourceLanguage) {
-          try {
-            const transpiledCode = codeTranspiler.transpile(sourceCode, sourceLanguage, displayLang);
-            block.textContent = transpiledCode;
-            block.className = `language-${displayLang}`;
-          } catch (e) {
-            console.error('[v0] Pre-conversion error:', e);
-            // Fall back to source code if conversion fails
-          }
-        }
-      }
+      const currentLang = langMatch ? langMatch[1] : 'javascript';
 
       // Create language selector UI
       const selectorHTML = `
         <div class="language-selector">
           <button class="language-selector-btn" data-code-block="${index}">
-            <span class="lang-name">${SUPPORTED_LANGUAGES[displayLang]?.name || capitalize(displayLang)}</span>
+            <span class="lang-name">${SUPPORTED_LANGUAGES[currentLang]?.name || capitalize(currentLang)}</span>
             <span class="lang-arrow">⋯</span>
           </button>
           <div class="language-dropdown" id="lang-dropdown-${index}" style="display: none;">
             ${Object.entries(SUPPORTED_LANGUAGES)
               .map(([key, lang]) => `
-              <button class="language-option ${key === displayLang ? 'active' : ''}" 
+              <button class="language-option ${key === currentLang ? 'active' : ''}" 
                       data-code-block="${index}" 
                       data-target-lang="${key}" 
                       title="${lang.name}">
@@ -777,12 +758,10 @@
       // Insert selector before code block
       pre.insertAdjacentHTML('beforebegin', selectorHTML);
 
-      // Store source code and source language for transpilation
+      // Store code block reference for transpilation
       block.dataset.codeBlockIndex = index;
-      block.dataset.sourceCode = sourceCode;
-      block.dataset.sourceLanguage = sourceLanguage;
-      block.dataset.originalCode = sourceCode;  // Keep for backward compatibility
-      block.dataset.currentLanguage = displayLang;
+      block.dataset.originalCode = block.textContent;
+      block.dataset.currentLanguage = currentLang;
     });
 
     // Attach event listeners for language switching
@@ -827,96 +806,13 @@
     });
   }
 
-  // ─── GLOBAL CODE LANGUAGE SWITCHER ─────────────────────
-  function convertAllCodeBlocksInMessage(targetLang) {
-    const allCodeBlocks = dom.chatMessages.querySelectorAll('pre code');
-    if (allCodeBlocks.length === 0) return;
-
-    // Get all unique containers (message divs)
-    const containers = new Set();
-    allCodeBlocks.forEach(block => {
-      const messageDiv = block.closest('.message-content');
-      if (messageDiv) containers.add(messageDiv);
-    });
-
-    let converted = 0;
-    let failed = 0;
-
-    containers.forEach(container => {
-      const codeBlocks = container.querySelectorAll('pre code');
-      codeBlocks.forEach((block, index) => {
-        // Always use source language and source code as the source of truth
-        const sourceLanguage = block.dataset.sourceLanguage || block.dataset.currentLanguage || 'javascript';
-        const sourceCode = block.dataset.sourceCode || block.dataset.originalCode || block.textContent;
-        const currentLang = block.dataset.currentLanguage || 'javascript';
-
-        if (targetLang === currentLang) {
-          return; // Skip if already in target language
-        }
-
-        try {
-          // Transpile FROM source language, not from current display language
-          const transpiledCode = codeTranspiler.transpile(sourceCode, sourceLanguage, targetLang);
-          block.textContent = transpiledCode;
-          block.className = `language-${targetLang}`;
-          block.dataset.currentLanguage = targetLang;
-          converted++;
-
-          // Update individual language selector button
-          const pre = block.parentElement;
-          const selector = pre.previousElementSibling;
-          if (selector && selector.classList.contains('language-selector')) {
-            const btn = selector.querySelector('.language-selector-btn');
-            btn.innerHTML = `<span class="lang-name">${SUPPORTED_LANGUAGES[targetLang].name}</span><span class="lang-arrow">⋯</span>`;
-
-            const dropdown = selector.querySelector('.language-dropdown');
-            if (dropdown) {
-              dropdown.querySelectorAll('.language-option').forEach(opt => {
-                opt.classList.toggle('active', opt.dataset.targetLang === targetLang);
-              });
-            }
-          }
-        } catch (error) {
-          console.error('[v0] Global transpilation error:', error);
-          failed++;
-        }
-      });
-    });
-
-    if (converted > 0) {
-      showToast(`✓ Converted ${converted} code block(s) to ${SUPPORTED_LANGUAGES[targetLang].name}`, 'success');
-    }
-    if (failed > 0) {
-      showToast(`⚠️ Failed to convert ${failed} code block(s)`, 'warning');
-    }
-  }
-
-  // Show/hide code language switcher based on code blocks
-  function updateCodeLanguageSwitcherVisibility() {
-    const hasCodeBlocks = dom.chatMessages.querySelectorAll('pre code').length > 0;
-    dom.codeLanguageSwitcher.style.display = hasCodeBlocks ? 'flex' : 'none';
-  }
-
-  // Event listener for global code language switcher
-  if (dom.codeLangDropdown) {
-    dom.codeLangDropdown.addEventListener('change', (e) => {
-      const targetLang = e.target.value;
-      convertAllCodeBlocksInMessage(targetLang);
-    });
-  }
-
   function switchCodeLanguage(codeBlockIndex, targetLang, container) {
     const codeBlocks = container.querySelectorAll('pre code');
     const codeBlock = codeBlocks[codeBlockIndex];
     if (!codeBlock) return;
 
-    // Always use source language and source code as the source of truth
-    const sourceLanguage = codeBlock.dataset.sourceLanguage || codeBlock.dataset.currentLanguage || 'javascript';
-    const sourceCode = codeBlock.dataset.sourceCode || codeBlock.dataset.originalCode || codeBlock.textContent;
     const currentLang = codeBlock.dataset.currentLanguage || 'javascript';
-
-    // Skip if already in target language
-    if (targetLang === currentLang) return;
+    const originalCode = codeBlock.dataset.originalCode;
 
     // Show loading state
     const pre = codeBlock.parentElement;
@@ -929,8 +825,7 @@
     // Perform transpilation with delay for visual feedback
     setTimeout(() => {
       try {
-        // Transpile FROM source language, not from current display language
-        const transpiledCode = codeTranspiler.transpile(sourceCode, sourceLanguage, targetLang);
+        const transpiledCode = codeTranspiler.transpile(originalCode, currentLang, targetLang);
         codeBlock.textContent = transpiledCode;
         codeBlock.className = `language-${targetLang}`;
         codeBlock.dataset.currentLanguage = targetLang;
@@ -940,12 +835,10 @@
         btn.disabled = false;
 
         // Update active state in dropdown
-        const dropdown = selector.querySelector('.language-dropdown');
-        if (dropdown) {
-          dropdown.querySelectorAll('.language-option').forEach(opt => {
-            opt.classList.toggle('active', opt.dataset.targetLang === targetLang);
-          });
-        }
+        const dropdown = selector.nextElementSibling;
+        dropdown.querySelectorAll('.language-option').forEach(opt => {
+          opt.classList.toggle('active', opt.dataset.targetLang === targetLang);
+        });
 
         // Show success toast
         showToast(`✓ Converted to ${SUPPORTED_LANGUAGES[targetLang].name}`, 'success');
@@ -1054,7 +947,7 @@
           <div class="clarity-card-title">
             <span class="clarity-card-icon">◈</span>
             <span class="clarity-card-text">Clarity Card</span>
-            <span class="clarity-card-hint">Claude's self-assessment of this response</span>
+            <span class="clarity-card-hint">Clarity AI's self-assessment of this response</span>
           </div>
           <span class="clarity-card-chevron">▾</span>
         </div>
@@ -1302,7 +1195,7 @@
     return (builders[category] || builders.general)(topic, prompt);
   }
 
-  // ─── GREETING RESPONSE ──────────────────��────────────
+  // ─── GREETING RESPONSE ───────────────────────────────
   function buildGreetingResponse() {
     return {
       mainResponse: `<p><strong>Hello! Welcome to the Clarity prototype.</strong> I'm Claude, and this interface includes an adaptive evaluation system designed to help you develop calibrated confidence in AI outputs.</p><p>Try asking me anything substantive — a research question, a coding task, a writing request, or a business strategy question. When I respond, you'll see:</p><ul><li><strong>Reasoning Lens</strong> (toggle top-right) — color-coded confidence levels for each claim</li><li><strong>Clickable Annotations</strong> — reasoning, evidence, and counterpoints for each segment</li><li><strong>Clarity Card</strong> — my honest self-assessment at the bottom of every response</li><li><strong>Evaluation Nudges</strong> — contextual prompts encouraging critical thinking</li></ul>`,
@@ -1707,7 +1600,7 @@ class ${className}Handler {
     };
   }
 
-  // ──�� BUSINESS RESPONSE BUILDER ───────────────────────
+  // ─── BUSINESS RESPONSE BUILDER ───────────────────────
   function buildBusinessResponse(topic, prompt) {
     const T = capitalize(topic);
 

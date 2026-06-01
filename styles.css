@@ -94,7 +94,7 @@ body {
   background: var(--bg-root);
   color: var(--text-primary);
   line-height: 1.6;
-  overflow: hidden;
+  
   height: 100vh;
 }
 
@@ -121,11 +121,7 @@ pre {
   border-radius: var(--radius-md);
   padding: 16px 20px;
   overflow-x: auto;
-  overflow-y: visible;
   margin: 12px 0;
-  max-width: 100%;
-  width: 100%;
-  box-sizing: border-box;
 }
 
 pre code {
@@ -134,9 +130,6 @@ pre code {
   font-size: 0.85rem;
   line-height: 1.7;
   color: var(--text-primary);
-  word-break: break-word;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
 }
 
 /* ─── SCROLLBAR ─────────────────────────────────────── */
@@ -287,7 +280,7 @@ pre code {
   margin-top: 20px;
 }
 
-/* ─── APP LAYOUT ────────────────────────��───────────── */
+/* ─── APP LAYOUT ────────────────────────────────────── */
 #app {
   display: flex;
   height: 100vh;
@@ -295,7 +288,7 @@ pre code {
   overflow: hidden;
 }
 
-/* ─── SIDEBAR ─────����─────────────────────────────────── */
+/* ─── SIDEBAR ─────���─────────────────────────────────── */
 #sidebar {
   width: var(--sidebar-width);
   min-width: var(--sidebar-width);
@@ -528,7 +521,7 @@ pre code {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
   background: var(--bg-base);
 }
 
@@ -594,6 +587,29 @@ pre code {
   border-color: var(--accent);
   background: var(--accent-glow);
   box-shadow: 0 0 20px var(--accent-glow);
+}
+
+/* Subtle animation for first activation */
+.reasoning-lens-control.lens-animate {
+  animation: lensFadeIn 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes lensFadeIn {
+  0% {
+    box-shadow: 0 0 0 var(--accent-glow-strong);
+    opacity: 0.2;
+    transform: scale(0.98);
+  }
+  60% {
+    box-shadow: 0 0 32px var(--accent-glow-strong);
+    opacity: 1;
+    transform: scale(1.03);
+  }
+  100% {
+    box-shadow: 0 0 20px var(--accent-glow);
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .lens-indicator {
@@ -833,12 +849,11 @@ pre code {
 
 /* ─── CODE LANGUAGE SELECTOR ────────────────────────── */
 .language-selector {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   margin-bottom: 8px;
   position: relative;
   gap: 8px;
-  min-height: 28px;
 }
 
 .language-selector-btn {
@@ -967,111 +982,6 @@ pre.has-language-selector {
   }
 }
 
-/* ─── CODE LANGUAGE QUICK SWITCHER ─────────────────── */
-.code-language-switcher {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 32px;
-  background: linear-gradient(90deg, rgba(217, 119, 87, 0.08) 0%, transparent 100%);
-  border-bottom: 1px solid var(--border-default);
-  margin: 0;
-  width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
-  flex-shrink: 0;
-  animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.code-lang-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.code-lang-dropdown {
-  flex: 0 1 auto;
-  min-width: 140px;
-  max-width: 200px;
-  padding: 8px 12px;
-  background: var(--bg-surface-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--duration-fast);
-  font-family: inherit;
-}
-
-.code-lang-dropdown:hover {
-  border-color: var(--accent);
-  background: var(--bg-surface-3);
-}
-
-.code-lang-dropdown:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-glow);
-}
-
-.code-lang-dropdown:hover {
-  background: var(--bg-surface-3);
-  border-color: var(--accent-light);
-}
-
-.code-lang-dropdown:focus {
-  outline: none;
-  border-color: var(--accent-light);
-  box-shadow: 0 0 0 2px var(--accent-glow-strong);
-}
-
-.code-lang-dropdown option {
-  background: var(--bg-surface-2);
-  color: var(--text-primary);
-  padding: 8px;
-}
-
-@media (max-width: 768px) {
-  .code-language-switcher {
-    flex-wrap: wrap;
-    padding: 10px 12px;
-    gap: 8px;
-  }
-
-.code-lang-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.code-lang-dropdown {
-    max-width: 100%;
-    min-width: 140px;
-    font-size: 0.82rem;
-  }
-
-  .code-lang-label {
-    font-size: 0.78rem;
-  }
-}
-
 
 /* Toggle Switch */
 .toggle-switch {
@@ -1139,12 +1049,10 @@ pre.has-language-selector {
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
   padding: 32px;
   display: flex;
   flex-direction: column;
   gap: 28px;
-  box-sizing: border-box;
 }
 
 /* User message */
@@ -1155,8 +1063,6 @@ pre.has-language-selector {
   width: 100%;
   margin: 0 auto;
   animation: messageSlideIn 0.5s var(--ease-out);
-  box-sizing: border-box;
-  overflow: hidden;
 }
 
 .message-avatar {
@@ -1186,8 +1092,6 @@ pre.has-language-selector {
 .message-content {
   flex: 1;
   min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
 }
 
 .user-message .message-content {
@@ -1198,8 +1102,6 @@ pre.has-language-selector {
   font-size: 0.92rem;
   color: var(--text-primary);
   line-height: 1.65;
-  box-sizing: border-box;
-  overflow-x: auto;
 }
 
 .assistant-message .message-content {
@@ -2330,7 +2232,7 @@ pre.has-language-selector {
   50% { transform: scale(1.2); opacity: 1; }
 }
 
-/* ─── API SETTINGS MODAL ──────────────────────�����────── */
+/* ─── API SETTINGS MODAL ────────────────────────────── */
 .api-settings-btn {
   background: none;
   border: none;
