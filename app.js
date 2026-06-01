@@ -571,6 +571,7 @@
     }
   }
 
+if (dom.lensMode) {
   dom.lensMode.addEventListener('change', (e) => {
     state.lensMode = e.target.value;
     const isActive = state.lensMode !== 'off';
@@ -587,6 +588,7 @@
       renderConversation();
     }
   });
+}
 
   // ─── CONVERSATION RENDERING (Demo Scenarios) ────────
   function renderConversation() {
