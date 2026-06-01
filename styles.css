@@ -94,7 +94,6 @@ body {
   background: var(--bg-root);
   color: var(--text-primary);
   line-height: 1.6;
-  
   height: 100vh;
 }
 
