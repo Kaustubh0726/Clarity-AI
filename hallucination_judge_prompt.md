@@ -103,31 +103,40 @@ REASONING: [brief explanation of score]
 
 ## DECISION TREE: What Score to Assign
 
-**START HERE WHEN SCORING:**
+**START HERE WHEN SCORING - FOLLOW STRICTLY:**
 
 ```
+Question: Is this a "Should I use X or Y?" question OR "Is X better than Y?" question?
+├─ YES → AUTOMATIC MAX: 50% (DO NOT SCORE HIGHER - THIS IS THE RULE)
+├─ Examples that MUST be ≤50%:
+│  ├─ "Should I use Python or JavaScript?" → 38% (NOT 100%!)
+│  ├─ "Is PostgreSQL better than MongoDB?" → 42%
+│  ├─ "Should I use TypeScript?" → 40%
+│  └─ "Is React better than Vue?" → 35%
+└─ NO → Continue
+
 Question: Does the response contain ONLY documented facts with ZERO opinion/inference?
-├─ YES → Score: 95-100% (very rare)
+├─ YES → Score: 95-100% (very rare - API docs, syntax only)
 └─ NO → Continue
 
 Question: Does the response include any "should", "best", "optimal", "recommend"?
-├─ YES → Deduct 20-30 points from 100 → Score: 60-80%
+├─ YES → Deduct 20-30 points from 100 → Score: 60-80% (MAXIMUM)
 └─ NO → Continue
 
 Question: Does the response compare multiple options (REST vs GraphQL, etc)?
-├─ YES → Score: 60-75% (architectural choice required)
+├─ YES → Score: 60-75% (architectural choice required, not opinion)
 └─ NO → Continue
 
 Question: Does the response answer with "it depends"?
-├─ YES → Score: 50-70% (context-dependent)
-└─ NO → Continue
-
-Question: Is the response opinion-based or asking "is X better"?
-├─ YES → Score: 20-40% (inherently subjective)
+├─ YES → Score: 50-70% (context-dependent = inferred)
 └─ NO → Continue
 
 Question: Does the response contain performance/speed claims?
-├─ YES → Deduct 15-30 points → Score: 50-85%
+├─ YES → Deduct 15-30 points → Score: 50-85% (MAXIMUM)
+└─ NO → Continue
+
+Question: Is the core question subjective/opinion-based?
+├─ YES → MAXIMUM: 50% (inherently subjective, can't be higher)
 └─ NO → Continue
 
 Question: Can every claim be verified in official documentation?
@@ -138,59 +147,172 @@ Question: Can every claim be verified in official documentation?
 Question: Does the response contain ANY hallucinations?
 ├─ YES → Score: 0-40% (depends on severity)
 └─ NO → Use score from above
+
+⚠️ FINAL CHECK: If your score is above 90%, you MUST have found only:
+- Syntax definitions (const x = 5;)
+- Direct API documentation
+- Mathematical facts (2+2=4)
+- Proven algorithms
+Otherwise, reduce the score!
 ```
 
 ## Scoring Examples (MUST VARY!)
 
-### Example 1: Pure Documentation → 98%
-**Q**: "What is the syntax for a JavaScript arrow function?"
-**A**: "Arrow functions use the `=>` syntax: `const func = () => { ... }`"
-**Analysis**: 
-- Grounded: 1 (official syntax)
+### 🚨 THE MOST COMMON MISTAKE: "Should I use X or Y?" Questions
+
+**THESE QUESTIONS MUST NEVER SCORE ABOVE 50%**
+
+#### WRONG SCORING (What you were doing):
+```
+Q: "Should I use Python or JavaScript?"
+A: "Both are programming languages. Python is used for data science..."
+
+Score: 100% ❌ COMPLETELY WRONG
+```
+
+#### RIGHT SCORING (What you should do):
+```
+Q: "Should I use Python or JavaScript?"
+A: "Both are programming languages. Python is used for data science..."
+
+Analysis:
+- Grounded: 1 (basic language descriptions)
+- Inferred: 2 (use cases for Python, implied comparison)
+- Unverified: 2 ("Python is good for X" = subjective without context)
+- This is a comparison question → Automatic max 50%
+- No hallucinations, but inherently opinion-based
+
+Score: 38% 🟡 (CORRECT - right in the 35-45% range for opinion questions)
+Reasoning: "Should I use X or Y" is inherently subjective and depends entirely on 
+use case, team skills, and project constraints. Even accurate information doesn't 
+make this answerable objectively. No hallucinations, but recommendation nature 
+limits score to 50% maximum."
+```
+
+**KEY RULE: "Should I..." questions = MAXIMUM 50%**
+
+Other examples that MUST score ≤50%:
+- ❌ "Should I use PostgreSQL or MongoDB?" → Must be 35-50% (NOT 90%)
+- ❌ "Is Python better than JavaScript?" → Must be 30-45% (NOT 100%)
+- ❌ "Should I use async/await?" → Must be 40-55% (NOT 95%)
+- ❌ "Is TypeScript worth it?" → Must be 35-50% (NOT 90%)
+- ❌ "Which is better: REST or GraphQL?" → Must be 60-75% (comparison with context)
+
+---
+
+### Example 1: Pure Documentation → 96%
+```
+Response: "Arrow functions use the `=>` syntax: `const func = () => { ... }`"
+
+Analysis: 
+- Grounded: 1 (syntax from JavaScript spec)
 - Inferred: 0
 - Unverified: 0
-- No opinions, no recommendations
-**Score: 98%** ✅ (Only syntax, nothing inferred)
+- No opinions, no recommendations, no comparisons
+- Can be directly verified in official documentation
 
-### Example 2: Architecture Choice → 68%
-**Q**: "Should I use SQL or NoSQL for my application?"
-**A**: "SQL works better for structured data with relationships. NoSQL is good for flexible schemas. It depends on your use case."
-**Analysis**:
-- Grounded: 2 (SQL/NoSQL definitions)
-- Inferred: 2 (recommendations, use cases)
-- Unverified: 1 ("better", "good" without context)
-- Contains "depends on use case" = context-dependent
-**Score: 68%** 🟡 (Mixed guidance with inference)
+Score: 96% ✅ (Only syntax, no inference - APPROPRIATE)
+Reasoning: Direct from JavaScript documentation. Pure technical syntax, 
+no recommendations or opinions. This is rare - most responses score lower.
+```
 
-### Example 3: Opinion → 32%
-**Q**: "Is Python or JavaScript the best programming language?"
-**A**: "Python is definitely the best because it's easier and has great libraries. Everyone should use Python."
-**Analysis**:
-- Grounded: 0 (opinion-based)
-- Inferred: 1 (easier for whom? by what metric?)
-- Unverified: 3 (best, everyone, should)
-- Absolutist language with no qualification
-**Score: 32%** 🔴 (Opinion presented as fact)
+---
 
-### Example 4: Performance Claims → 55%
-**Q**: "How do I optimize database queries?"
-**A**: "Use indexes to speed up queries. Generally, indexes reduce query time significantly. You can also use caching for faster responses."
-**Analysis**:
+### Example 2: Architecture Choice → 68% (NOT Architecture Recommendation)
+```
+Response: "REST uses HTTP methods and status codes. GraphQL uses a single 
+endpoint with query language. REST is simpler to learn; GraphQL is more flexible 
+for client needs."
+
+Analysis**:
+- Grounded: 2 (REST definitions, GraphQL definitions)
+- Inferred: 2 (simpler to learn, flexible for clients - subjective)
+- Unverified: 1 (comparative claims without benchmarks)
+- This is a comparison, not a "should I use X?"
+- Contains descriptive + prescriptive elements
+
+Score: 68% 🟡 (Mixed guidance with inference - CORRECT)
+Reasoning: Describes documented differences but includes subjective comparative 
+claims. While accurate, recommendations depend on specific use case. Not opinion-based 
+but architectural choice requires context.
+```
+
+---
+
+### ❌ Example 3: WRONG vs RIGHT Scoring
+
+**WRONG WAY (What you're currently doing):**
+```
+Q: "Should I use Python or JavaScript?"
+A: "Python is great for data science because it has many libraries like NumPy 
+and Pandas. JavaScript is good for web development..."
+
+Your score: 100% ❌ WRONG
+
+Problem: You said "it mentions documented facts (NumPy, Pandas exist)" so 100%.
+But the QUESTION is inherently opinion-based! The facts don't matter if the 
+question itself is subjective.
+```
+
+**RIGHT WAY (What you should do):**
+```
+Q: "Should I use Python or JavaScript?"
+A: "Python is great for data science because it has many libraries like NumPy 
+and Pandas. JavaScript is good for web development..."
+
+Analysis:
+- The QUESTION TYPE is "Should I use..." → Automatic max 50%
+- Even if facts are grounded, the recommendation is subjective
+- Without knowing the user's project, team, timeline, this CAN'T be objective
+
+Score: 38% 🟡 CORRECT
+
+Reasoning: "Should I use" questions are inherently opinion-based and context-dependent. 
+Facts about Python/JavaScript libraries are documented, but the recommendation 
+depends on factors like project type, team expertise, timeline, and budget. 
+No hallucinations, but recommendation nature limits confidence to 50% maximum.
+```
+
+---
+
+### Example 4: Pure Opinion → 25%
+```
+Response: "Python is definitely the best programming language because it's 
+easier and everyone should use it."
+
+Analysis**:
+- Grounded: 0 (no documented facts)
+- Inferred: 1 (easier = subjective)
+- Unverified: 3 (best, everyone should, all purposes)
+- Absolutist language with no qualifications
+- Major opinion-based claim
+
+Score: 25% 🔴 (Opinion presented as fact - CORRECT)
+Reasoning: Multiple unverified comparative claims presented as absolutes. 
+No acknowledgment of context-dependency. High speculation with absolutist 
+language and "should" directive. This is opinion without qualification.
+```
+
+---
+
+### Example 5: Performance Claims → 55%
+```
+Response: "Use indexes to speed up queries. Generally, indexes reduce query 
+time significantly. You can also use caching for faster responses."
+
+Analysis**:
 - Grounded: 2 (indexes exist, caching works)
-- Inferred: 2 (speed up, reduce time significantly, faster)
+- Inferred: 2 (speed up, reduce time significantly)
 - Unverified: 1 ("significantly" = performance claim without benchmarks)
-- Words like "generally" and performance claims present
-**Score: 55%** 🟡 (Good advice but performance claims need verification)
+- Performance claims present → Deduct 20 points
+- Generalizations present (generally) → Deduct 10 points
 
-### Example 5: Comparison → 72%
-**Q**: "REST vs GraphQL - when should I use each?"
-**A**: "REST is simple and cacheable. GraphQL is flexible and reduces over-fetching. Use REST for simple CRUD APIs, GraphQL for complex queries. REST has better tooling maturity currently."
-**Analysis**:
-- Grounded: 3 (REST/GraphQL definitions)
-- Inferred: 2 (simple, flexible, reduces over-fetching)
-- Unverified: 1 ("better tooling" = comparative claim)
-- Contains context-dependent recommendations
-**Score: 72%** 🟡 (Documented features + inferred recommendations)
+Score: 55% 🟡 (Good advice but needs verification - CORRECT)
+Reasoning: Indexes and caching are documented, but performance claims lack 
+specific benchmarks. Words like "generally" and "significantly" are 
+generalizations. Good practical advice but confidence limited by unverified 
+performance metrics.
+```
 
 **Detected hallucinations** (common AI errors):
 - "Express.js has built-in GraphQL support" → FALSE (third-party packages only)
@@ -229,43 +351,58 @@ Question: Does the response contain ANY hallucinations?
 
 **Your judge reports show 100% for almost every response. THIS IS WRONG.**
 
+**ESPECIALLY for "Should I use X or Y?" → You keep giving 100% when it should be 35-50%**
+
 Most responses contain:
 - Recommendations (inferred, not grounded)
 - Comparative language (subjective)
 - Architectural decisions (context-dependent)
 - General statements (not absolute)
 
+### THE #1 MISTAKE: "Should I use Python or JavaScript?" = NOT 100%!
+
+**WRONG (What you're doing):**
+```
+Q: "Should I use Python or JavaScript?"
+A: [Response with facts about Python/JavaScript]
+Your judgment: "The response mentions facts about libraries and use cases. 
+These are documented. Score: 100%" ❌
+
+THIS IS COMPLETELY WRONG!
+```
+
+**RIGHT (What you should do):**
+```
+Q: "Should I use Python or JavaScript?"
+A: [Response with facts about Python/JavaScript]
+Your judgment: "This is a 'Should I use' question. Automatic rule: MAXIMUM 50%.
+The facts may be grounded, but the recommendation depends entirely on the user's
+specific context (project type, team skills, timeline, budget). Even perfect 
+facts don't make subjective recommendations objective. Score: 38%" ✅
+
+THIS IS CORRECT!
+```
+
+**THE RULE:** 
+- If question is "Should I use X?" → ALWAYS score 35-50%, NEVER higher
+- If question is "Is X better?" → ALWAYS score 30-50%, NEVER higher
+- NO EXCEPTIONS TO THIS RULE
+
 **AUTOMATIC SCORE REDUCTIONS:**
 
 Apply these EVERY TIME you see these patterns:
 
-| Pattern | Deduction | Result |
-|---------|-----------|--------|
-| "should", "best", "optimal" | -20 points | Change 100% → 80% |
-| "usually", "typically", "generally" | -15 points | Change 95% → 80% |
-| Performance claims without benchmarks | -25 points | Change 90% → 65% |
-| Comparisons (better, best, faster) | -20 points | Change 90% → 70% |
-| Architecture recommendations | -25 points | Change 95% → 70% |
-| "I recommend..." or "You should..." | -30 points | Change 100% → 70% |
-| Opinion-based answer | -60 points | Change 100% → 40% |
-
-**EXAMPLES OF SCORES YOU SHOULD BE SEEING:**
-
-Instead of:
-- 100% for "How to use Express.js" → **Use: 92-96%**
-- 100% for "When should I use TypeScript?" → **Use: 65-75%**
-- 100% for "Is Python good?" → **Use: 35-45%**
-- 100% for "Best practices for async" → **Use: 70-80%**
-- 100% for "REST vs GraphQL" → **Use: 68-75%**
-
-**Your score distribution should look like:**
-- 95-100%: 10% of responses (rare, pure syntax/facts)
-- 80-94%: 20% of responses (technical with minor inference)
-- 60-79%: 40% of responses (mixed grounded + inferred)
-- 40-59%: 20% of responses (significant inference)
-- 20-39%: 10% of responses (opinion-heavy)
-
-**RIGHT NOW: Stop giving 100% to anything with recommendations!**
+| Pattern | Deduction | Result | Example |
+|---------|-----------|--------|---------|
+| "Should I use X?" question | Fixed max 50% | ≤ 50% | "Should I use Python?" → 38% |
+| "Is X better than Y?" | Fixed max 50% | ≤ 50% | "Is PostgreSQL better?" → 42% |
+| "should", "best", "optimal" | -20 points | ≤ 80% | Generic recommendation → 70% |
+| "usually", "typically", "generally" | -15 points | ≤ 85% | Generalization → 75% |
+| Performance claims without benchmarks | -25 points | ≤ 75% | "Fast queries" → 60% |
+| Comparisons (better, best, faster) | -20 points | ≤ 80% | Comparative claim → 70% |
+| Architecture recommendations | -25 points | ≤ 75% | "Use microservices" → 60% |
+| "I recommend..." or "You should..." | -30 points | ≤ 70% | Direct recommendation → 55% |
+| Opinion-based answer | Fixed max 50% | ≤ 50% | Opinion question → 35% |
 
 ## Examples
 
@@ -370,6 +507,51 @@ If your current judge reports show:
 **If your answer to most of these is "no", then 95%+ is appropriate. But that should be RARE.**
 
 Most responses should score 60-80% because most questions require some inference!
+
+---
+
+## 🚨 FINAL CHECK: Are You Still Giving 100% to "Should I use..." Questions?
+
+**IF YOU ARE, THIS IS WHY SCORES ARE WRONG:**
+
+The model must understand: **Question type determines maximum possible score**, not just response quality.
+
+**HARD RULES (NO EXCEPTIONS):**
+- "Should I use X or Y?" question → MAXIMUM 50% (e.g., "Should I use Python?" = 38%)
+- "Is X better than Y?" question → MAXIMUM 50% (e.g., "Is PostgreSQL better?" = 42%)
+- "Is X worth it?" question → MAXIMUM 50% (e.g., "Is TypeScript worth it?" = 45%)
+- "Should I learn X?" question → MAXIMUM 50% (e.g., "Should I learn Vue?" = 40%)
+
+**WHY THIS RULE EXISTS:**
+
+Even if the response contains ONLY documented facts, the **question is subjective**. The answer depends on:
+- User's specific project
+- Team experience level
+- Timeline and budget
+- Scale requirements
+- Business goals
+
+No amount of factual accuracy makes a subjective question objective!
+
+**YOUR MENTAL MODEL MUST SHIFT FROM:**
+```
+"Are the facts grounded?"
+↓
+"If YES → 100%"
+```
+
+**TO:**
+
+```
+"What type of question is this?"
+↓
+"If 'Should I use X or Y?' → Maximum 50% (even if all facts are perfect)"
+"If technical syntax → 95-100% possible"
+"If recommendation → 60-80% maximum"
+"If opinion → 35-50% maximum"
+```
+
+---
 
 ## Output Format
 
