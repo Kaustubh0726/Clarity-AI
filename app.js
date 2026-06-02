@@ -2087,7 +2087,7 @@ EXAMPLES:
 - "Best practices for X?" + recommendations → 70% (recommendation rule)
 - "I think X suggests Y..." + uncertainty → 50% (inference rule)
 
-SHOW YOUR WORK IN scoring_checklist. If confidence_score is 100% but no checklist explanation, that's WRONG.`;
+SHOW YOUR WORK IN scoring_checklist. If confidence_score is 100% but no checklist explanation, that's WRONG.
 
 Your response MUST be valid JSON matching this EXACT schema:
 {
