@@ -653,15 +653,18 @@ if (dom.lensMode) {
     // Priority 1: Use AI model's self-assessment (hallucination judge)
     // Priority 2: Fall back to hardcoded heuristics if judge report not available
     let validationScore = extractJudgeConfidenceScore(msg);
+    let validationSource = 'fallback';
     if (validationScore === null) {
       // Fallback to hardcoded validation if model didn't provide judge report
       validationScore = calculateValidationScore(msg.mainResponse, msg.segments || []);
+    } else {
+      validationSource = 'model judge';
     }
     
     // Get judge report details if available (for debugging/future use)
     const judgeDetails = getJudgeReportDetails(msg);
     
-    const confidenceBadgeHTML = renderConfidenceBadge(validationScore);
+    const confidenceBadgeHTML = renderConfidenceBadge(validationScore, validationSource);
 
     // Build Clarity evaluation segments
     let segmentsHTML = '';
@@ -880,8 +883,12 @@ if (dom.lensMode) {
    */
   function extractJudgeConfidenceScore(msg) {
     try {
-      if (msg && msg.hallucination_judge_report && typeof msg.hallucination_judge_report.confidence_score === 'number') {
-        const score = msg.hallucination_judge_report.confidence_score;
+      if (msg && msg.hallucination_judge_report && msg.hallucination_judge_report.confidence_score !== undefined && msg.hallucination_judge_report.confidence_score !== null) {
+        // Some model outputs serialize confidence as a string (e.g. "78").
+        // Parse both number and numeric-string values so we do not silently fall back.
+        const rawScore = msg.hallucination_judge_report.confidence_score;
+        const score = typeof rawScore === 'number' ? rawScore : Number(rawScore);
+        if (!Number.isFinite(score)) return null;
         return Math.max(0, Math.min(100, Math.round(score))); // Clamp 0-100
       }
     } catch (e) {
@@ -976,14 +983,15 @@ if (dom.lensMode) {
       return groundedCount > 0;
     }
 
-    // Fallback: Check for confidence indicators in sentence
-    const uncertainWords = ['may', 'might', 'could', 'possibly', 'reportedly', 'allegedly', 'suggest', 'appear'];
-    const certainWords = ['clearly', 'definitely', 'prove', 'demonstrated', 'verified', 'confirmed', 'established'];
+    // Fallback: conservative lexical cues when segment evidence is unavailable
+    const uncertainWords = ['may', 'might', 'could', 'possibly', 'reportedly', 'allegedly', 'suggest', 'appear', 'recommend', 'should', 'best', 'optimal', 'probably'];
+    const certainWords = ['clearly', 'definitely', 'prove', 'demonstrated', 'verified', 'confirmed', 'established', 'documented', 'official', 'according to'];
     
     const hasUncertainty = uncertainWords.some(w => sentenceLower.includes(w));
     const hasCertainty = certainWords.some(w => sentenceLower.includes(w));
 
-    return hasCertainty || !hasUncertainty;
+    // Never auto-approve all neutral sentences; require at least one grounded cue.
+    return hasCertainty && !hasUncertainty;
   }
 
   /**
@@ -1002,7 +1010,20 @@ if (dom.lensMode) {
       return judgeSemanticValidity(sentence, segments);
     });
 
-    const score = Math.round((validSentences.length / sentences.length) * 100);
+    let score = Math.round((validSentences.length / sentences.length) * 100);
+
+    // Apply conservative caps so fallback heuristics don't report unrealistic certainty.
+    const text = mainResponse.toLowerCase();
+    const hasSubjectiveLanguage = /(should|recommend|best|better|worth it|i suggest|my perspective)/.test(text);
+    const hasUncertaintyLanguage = /(may|might|could|uncertain|unknown|possibly|likely)/.test(text);
+    const hasFewSentences = sentences.length < 3;
+    const hasNoSegments = !segments || segments.length === 0;
+
+    if (hasSubjectiveLanguage) score = Math.min(score, 70);
+    if (hasUncertaintyLanguage) score = Math.min(score, 80);
+    if (hasFewSentences) score = Math.min(score, 85);
+    if (hasNoSegments) score = Math.min(score, 75);
+
     return Math.max(0, Math.min(100, score)); // Clamp 0-100
   }
 
@@ -1050,7 +1071,7 @@ if (dom.lensMode) {
    * @param {number} score - Validation score
    * @returns {string} HTML for badge
    */
-  function renderConfidenceBadge(score) {
+  function renderConfidenceBadge(score, source = 'fallback') {
     const badge = getConfidenceBadge(score);
     
     return `
@@ -1062,6 +1083,7 @@ if (dom.lensMode) {
         <div class="badge-content">
           <div class="badge-label" style="color: ${badge.color};">${badge.text}</div>
           <div class="badge-subtitle">${badge.subtitle}</div>
+          <div class="badge-subtitle" style="opacity: 0.8;">Source: ${escapeHtml(source)}</div>
         </div>
         <div class="badge-score" style="background-color: ${badge.color}; color: white;">
           ${score}%
