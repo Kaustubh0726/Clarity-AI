@@ -127,12 +127,12 @@ const conversations = {
   // ─── SCENARIO 2: CODE GENERATION ───────────────────
   code: {
     title: "Code Generation",
-    subtitle: "Secure Auth Middleware in Express.js",
+    subtitle: "Secure Auth Middleware in Python",
     icon: "💻",
     messages: [
       {
         role: "user",
-        content: "Write a secure authentication middleware for Express.js with JWT access tokens and refresh token rotation. Include proper error handling."
+        content: "Write a secure authentication middleware for Python with JWT access tokens and refresh token rotation. Include proper error handling."
       },
       {
         role: "assistant",
@@ -140,40 +140,98 @@ const conversations = {
           {
             id: "c1",
             type: "grounded",
-            content: `<p>Here's a JWT authentication middleware with refresh token rotation. I'll use <code>jsonwebtoken</code> for token operations and implement a standard access + refresh token pattern.</p>`,
+            content: `<p>Here's a JWT authentication middleware with refresh token rotation. I'll use <code>PyJWT</code> for token operations and implement a standard access + refresh token pattern in Python.</p>`,
             annotation: {
-              reasoning: "Standard JWT middleware pattern well-documented in OWASP and Express.js security best practices.",
-              evidence: "OWASP JWT Cheat Sheet; Express.js security documentation; RFC 7519",
+              reasoning: "Standard JWT middleware pattern well-documented in OWASP and Flask/Django security best practices.",
+              evidence: "OWASP JWT Cheat Sheet; Flask-JWT-Extended documentation; RFC 7519",
               counterpoint: "The JWT approach itself is debated — some security experts prefer opaque tokens with server-side sessions for better revocation control."
             }
           },
           {
             id: "c2",
             type: "grounded",
-            content: `<pre><code class="language-javascript">const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+            targetLanguage: "python",
+            sourceLanguage: "python",
+            sourceCode: `import jwt
+import uuid
+from datetime import datetime, timedelta
+from functools import wraps
+from flask import request, jsonify
 
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
-const ACCESS_EXPIRY = '15m';
-const REFRESH_EXPIRY = '7d';
+ACCESS_SECRET = "your-access-secret-key"
+REFRESH_SECRET = "your-refresh-secret-key"
+ACCESS_EXPIRY = timedelta(minutes=15)
+REFRESH_EXPIRY = timedelta(days=7)
 
-// Generate token pair
-function generateTokens(userId, roles = []) {
-  const accessToken = jwt.sign(
-    { sub: userId, roles, type: 'access' },
+def generate_tokens(user_id, roles=None):
+  if roles is None:
+    roles = []
+  
+  access_token = jwt.encode(
+    {
+      "sub": user_id,
+      "roles": roles,
+      "type": "access",
+      "exp": datetime.utcnow() + ACCESS_EXPIRY,
+      "iat": datetime.utcnow()
+    },
     ACCESS_SECRET,
-    { expiresIn: ACCESS_EXPIRY, algorithm: 'HS256' }
-  );
-
-  const refreshToken = jwt.sign(
-    { sub: userId, type: 'refresh', jti: crypto.randomUUID() },
+    algorithm="HS256"
+  )
+  
+  refresh_token = jwt.encode(
+    {
+      "sub": user_id,
+      "type": "refresh",
+      "jti": str(uuid.uuid4()),
+      "exp": datetime.utcnow() + REFRESH_EXPIRY,
+      "iat": datetime.utcnow()
+    },
     REFRESH_SECRET,
-    { expiresIn: REFRESH_EXPIRY, algorithm: 'HS256' }
-  );
+    algorithm="HS256"
+  )
+  
+  return {"access_token": access_token, "refresh_token": refresh_token}`,
+            content: `<pre><code class="language-python">import jwt
+import uuid
+from datetime import datetime, timedelta
+from functools import wraps
+from flask import request, jsonify
 
-  return { accessToken, refreshToken };
-}</code></pre>`,
+ACCESS_SECRET = "your-access-secret-key"
+REFRESH_SECRET = "your-refresh-secret-key"
+ACCESS_EXPIRY = timedelta(minutes=15)
+REFRESH_EXPIRY = timedelta(days=7)
+
+def generate_tokens(user_id, roles=None):
+  if roles is None:
+    roles = []
+  
+  access_token = jwt.encode(
+    {
+      "sub": user_id,
+      "roles": roles,
+      "type": "access",
+      "exp": datetime.utcnow() + ACCESS_EXPIRY,
+      "iat": datetime.utcnow()
+    },
+    ACCESS_SECRET,
+    algorithm="HS256"
+  )
+  
+  refresh_token = jwt.encode(
+    {
+      "sub": user_id,
+      "type": "refresh",
+      "jti": str(uuid.uuid4()),
+      "exp": datetime.utcnow() + REFRESH_EXPIRY,
+      "iat": datetime.utcnow()
+    },
+    REFRESH_SECRET,
+    algorithm="HS256"
+  )
+  
+  return {"access_token": access_token, "refresh_token": refresh_token}</code></pre>`,
             annotation: {
               reasoning: "Standard token generation using well-established patterns. Environment variables for secrets, short-lived access tokens, and separate signing keys follow security best practices.",
               evidence: "OWASP Authentication Cheat Sheet; JWT RFC 7519",
@@ -183,42 +241,72 @@ function generateTokens(userId, roles = []) {
           {
             id: "c3",
             type: "inferred",
-            content: `<pre><code class="language-javascript">// ⚠️ In-memory store — replace with Redis/DB in production
-const refreshTokenStore = new Map();
+            targetLanguage: "python",
+            sourceLanguage: "python",
+            sourceCode: `# In-memory store — replace with Redis/Database in production
+refresh_token_store = {}
 
-function storeRefreshToken(userId, tokenId) {
-  const userTokens = refreshTokenStore.get(userId) || new Set();
-  userTokens.add(tokenId);
-  refreshTokenStore.set(userId, userTokens);
-}
+def store_refresh_token(user_id, token_id):
+  if user_id not in refresh_token_store:
+    refresh_token_store[user_id] = set()
+  refresh_token_store[user_id].add(token_id)
 
-function revokeRefreshToken(userId, tokenId) {
-  const userTokens = refreshTokenStore.get(userId);
-  if (userTokens) userTokens.delete(tokenId);
-}
+def revoke_refresh_token(user_id, token_id):
+  if user_id in refresh_token_store:
+    refresh_token_store[user_id].discard(token_id)
 
-function isRefreshTokenValid(userId, tokenId) {
-  const userTokens = refreshTokenStore.get(userId);
-  return userTokens ? userTokens.has(tokenId) : false;
-}
+def is_refresh_token_valid(user_id, token_id):
+  return user_id in refresh_token_store and token_id in refresh_token_store[user_id]
 
-// Refresh token rotation — issue new pair, revoke old
-async function rotateTokens(oldRefreshToken) {
-  const decoded = jwt.verify(oldRefreshToken, REFRESH_SECRET);
-  
-  if (!isRefreshTokenValid(decoded.sub, decoded.jti)) {
-    // Possible token reuse attack — revoke ALL user tokens
-    refreshTokenStore.delete(decoded.sub);
-    throw new Error('REFRESH_TOKEN_REUSE_DETECTED');
-  }
-  
-  revokeRefreshToken(decoded.sub, decoded.jti);
-  const newTokens = generateTokens(decoded.sub);
-  const newDecoded = jwt.decode(newTokens.refreshToken);
-  storeRefreshToken(decoded.sub, newDecoded.jti);
-  
-  return newTokens;
-}</code></pre>`,
+def rotate_tokens(old_refresh_token):
+  try:
+    decoded = jwt.decode(old_refresh_token, REFRESH_SECRET, algorithms=["HS256"])
+    
+    if not is_refresh_token_valid(decoded["sub"], decoded["jti"]):
+      # Possible token reuse attack — revoke ALL user tokens
+      refresh_token_store.pop(decoded["sub"], None)
+      raise Exception("REFRESH_TOKEN_REUSE_DETECTED")
+    
+    revoke_refresh_token(decoded["sub"], decoded["jti"])
+    new_tokens = generate_tokens(decoded["sub"])
+    new_decoded = jwt.decode(new_tokens["refresh_token"], REFRESH_SECRET, algorithms=["HS256"])
+    store_refresh_token(decoded["sub"], new_decoded["jti"])
+    
+    return new_tokens
+  except jwt.ExpiredSignatureError:
+    raise Exception("REFRESH_TOKEN_EXPIRED")`,
+            content: `<pre><code class="language-python"># In-memory store — replace with Redis/Database in production
+refresh_token_store = {}
+
+def store_refresh_token(user_id, token_id):
+  if user_id not in refresh_token_store:
+    refresh_token_store[user_id] = set()
+  refresh_token_store[user_id].add(token_id)
+
+def revoke_refresh_token(user_id, token_id):
+  if user_id in refresh_token_store:
+    refresh_token_store[user_id].discard(token_id)
+
+def is_refresh_token_valid(user_id, token_id):
+  return user_id in refresh_token_store and token_id in refresh_token_store[user_id]
+
+def rotate_tokens(old_refresh_token):
+  try:
+    decoded = jwt.decode(old_refresh_token, REFRESH_SECRET, algorithms=["HS256"])
+    
+    if not is_refresh_token_valid(decoded["sub"], decoded["jti"]):
+      # Possible token reuse attack — revoke ALL user tokens
+      refresh_token_store.pop(decoded["sub"], None)
+      raise Exception("REFRESH_TOKEN_REUSE_DETECTED")
+    
+    revoke_refresh_token(decoded["sub"], decoded["jti"])
+    new_tokens = generate_tokens(decoded["sub"])
+    new_decoded = jwt.decode(new_tokens["refresh_token"], REFRESH_SECRET, algorithms=["HS256"])
+    store_refresh_token(decoded["sub"], new_decoded["jti"])
+    
+    return new_tokens
+  except jwt.ExpiredSignatureError:
+    raise Exception("REFRESH_TOKEN_EXPIRED")</code></pre>`,
             annotation: {
               reasoning: "Refresh token rotation is a recommended security pattern, but this in-memory implementation is a practical compromise. The token reuse detection logic follows OWASP guidance but may have edge cases in concurrent request scenarios.",
               evidence: "OWASP Token Rotation guidelines; Auth0 refresh token rotation documentation",
@@ -228,38 +316,114 @@ async function rotateTokens(oldRefreshToken) {
           {
             id: "c4",
             type: "grounded",
-            content: `<pre><code class="language-javascript">// Authentication middleware
-function authenticate(req, res, next) {
-  const authHeader = req.headers.authorization;
+            targetLanguage: "python",
+            sourceLanguage: "python",
+            sourceCode: `from flask import Flask, request, jsonify
+from functools import wraps
+
+app = Flask(__name__)
+
+def authenticate(f):
+  @wraps(f)
+  def decorated_function(*args, **kwargs):
+    auth_header = request.headers.get("Authorization")
+    
+    if not auth_header or not auth_header.startswith("Bearer "):
+      return jsonify({
+        "error": "MISSING_TOKEN",
+        "message": "Authorization header with Bearer token required"
+      }), 401
+    
+    token = auth_header.split(" ")[1]
+    
+    try:
+      decoded = jwt.decode(token, ACCESS_SECRET, algorithms=["HS256"])
+      if decoded.get("type") != "access":
+        return jsonify({"error": "INVALID_TOKEN_TYPE"}), 401
+      
+      request.user = {"id": decoded["sub"], "roles": decoded.get("roles", [])}
+      return f(*args, **kwargs)
+      
+    except jwt.ExpiredSignatureError:
+      return jsonify({
+        "error": "TOKEN_EXPIRED",
+        "message": "Access token expired. Use refresh token."
+      }), 401
+    except jwt.InvalidTokenError:
+      return jsonify({"error": "INVALID_TOKEN"}), 401
   
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      error: 'MISSING_TOKEN',
-      message: 'Authorization header with Bearer token required'
-    });
-  }
+  return decorated_function
 
-  const token = authHeader.split(' ')[1];
+@app.route("/protected", methods=["GET"])
+@authenticate
+def protected_route():
+  return jsonify({"message": f"Hello, {request.user['id']}"}), 200
 
-  try {
-    const decoded = jwt.verify(token, ACCESS_SECRET);
-    if (decoded.type !== 'access') {
-      return res.status(401).json({ error: 'INVALID_TOKEN_TYPE' });
-    }
-    req.user = { id: decoded.sub, roles: decoded.roles };
-    next();
-  } catch (err) {
-    if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        error: 'TOKEN_EXPIRED',
-        message: 'Access token expired. Use refresh token.'
-      });
-    }
-    return res.status(401).json({ error: 'INVALID_TOKEN' });
-  }
-}
+@app.route("/refresh", methods=["POST"])
+def refresh():
+  try:
+    data = request.get_json()
+    refresh_token = data.get("refresh_token")
+    if not refresh_token:
+      return jsonify({"error": "MISSING_REFRESH_TOKEN"}), 400
+    
+    new_tokens = rotate_tokens(refresh_token)
+    return jsonify(new_tokens), 200
+  except Exception as e:
+    return jsonify({"error": str(e)}), 401`,
+            content: `<pre><code class="language-python">from flask import Flask, request, jsonify
+from functools import wraps
 
-module.exports = { generateTokens, authenticate, rotateTokens };</code></pre>`,
+app = Flask(__name__)
+
+def authenticate(f):
+  @wraps(f)
+  def decorated_function(*args, **kwargs):
+    auth_header = request.headers.get("Authorization")
+    
+    if not auth_header or not auth_header.startswith("Bearer "):
+      return jsonify({
+        "error": "MISSING_TOKEN",
+        "message": "Authorization header with Bearer token required"
+      }), 401
+    
+    token = auth_header.split(" ")[1]
+    
+    try:
+      decoded = jwt.decode(token, ACCESS_SECRET, algorithms=["HS256"])
+      if decoded.get("type") != "access":
+        return jsonify({"error": "INVALID_TOKEN_TYPE"}), 401
+      
+      request.user = {"id": decoded["sub"], "roles": decoded.get("roles", [])}
+      return f(*args, **kwargs)
+      
+    except jwt.ExpiredSignatureError:
+      return jsonify({
+        "error": "TOKEN_EXPIRED",
+        "message": "Access token expired. Use refresh token."
+      }), 401
+    except jwt.InvalidTokenError:
+      return jsonify({"error": "INVALID_TOKEN"}), 401
+  
+  return decorated_function
+
+@app.route("/protected", methods=["GET"])
+@authenticate
+def protected_route():
+  return jsonify({"message": f"Hello, {request.user['id']}"}), 200
+
+@app.route("/refresh", methods=["POST"])
+def refresh():
+  try:
+    data = request.get_json()
+    refresh_token = data.get("refresh_token")
+    if not refresh_token:
+      return jsonify({"error": "MISSING_REFRESH_TOKEN"}), 400
+    
+    new_tokens = rotate_tokens(refresh_token)
+    return jsonify(new_tokens), 200
+  except Exception as e:
+    return jsonify({"error": str(e)}), 401</code></pre>`,
             annotation: {
               reasoning: "The middleware itself follows well-established Express.js patterns. Error handling covers the main failure modes. Bearer token extraction follows RFC 6750.",
               evidence: "Express.js middleware documentation; RFC 6750 Bearer Token Usage",
