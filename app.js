@@ -482,6 +482,13 @@
   dom.onboardingBtn.addEventListener('click', () => {
     dom.onboarding.classList.add('hidden');
     setTimeout(() => { dom.onboarding.style.display = 'none'; }, 500);
+
+    // Enter interactive mode immediately after onboarding.
+    switchScenario('custom');
+    switchView('chat');
+    setTimeout(() => {
+      if (dom.chatInput) dom.chatInput.focus();
+    }, 120);
   });
 
   // ─── AUTO-ACTIVATE REASONING LENS ON LOAD ─────────────
@@ -1312,31 +1319,31 @@ if (dom.lensMode) {
       usedSimulatorFallback = true;
       response = await generateSimulatorResponse(text);
     }
+    try {
+      if (usedSimulatorFallback && state.apiMode === 'api') {
+        showToast('ℹ️ No API key set — using Smart Simulator. Add your Gemini key in Settings ⚙️', 'info');
+      }
 
-    if (usedSimulatorFallback && state.apiMode === 'api') {
-      showToast('ℹ️ No API key set — using Smart Simulator. Add your Gemini key in Settings ⚙️', 'info');
+      // Store messages
+      state.customMessages.push({ role: 'user', content: text });
+      state.customMessages.push({ role: 'assistant', ...response });
+
+      // Render assistant message
+      renderAssistantMessage(response);
+
+      // Scroll to bottom
+      dom.chatMessages.scrollTop = dom.chatMessages.scrollHeight;
+
+      // Re-apply lens
+      dom.chatMessages.classList.toggle('lens-active', state.lensActive);
+
+      // Update stats
+      state.sessionStats.customSessions++;
+    } finally {
+      // Always reset UI state even if rendering/parsing fails.
+      hideTypingIndicator();
+      state.isGenerating = false;
     }
-
-    // Remove typing indicator
-    hideTypingIndicator();
-
-    // Store messages
-    state.customMessages.push({ role: 'user', content: text });
-    state.customMessages.push({ role: 'assistant', ...response });
-
-    // Render assistant message
-    renderAssistantMessage(response);
-
-    // Scroll to bottom
-    dom.chatMessages.scrollTop = dom.chatMessages.scrollHeight;
-
-    // Re-apply lens
-    dom.chatMessages.classList.toggle('lens-active', state.lensActive);
-
-    // Update stats
-    state.sessionStats.customSessions++;
-
-    state.isGenerating = false;
   }
 
   function appendUserMessageDynamic(text) {
@@ -2522,6 +2529,13 @@ EXECUTE THE ALGORITHM. FILL OUT THE CHECKLIST. EVERY TIME.`;
 
     dom.apiModal.addEventListener('click', (e) => {
       if (e.target === dom.apiModal) closeModal();
+    });
+
+    // Close modal with Escape for reliability.
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !dom.apiModal.classList.contains('hidden')) {
+        closeModal();
+      }
     });
 
     // Mode tabs
