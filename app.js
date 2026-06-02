@@ -2017,11 +2017,34 @@ STEP 1: ACTUALLY ANSWER THE USER'S QUESTION FULLY AND ACCURATELY.
 - DO NOT give meta-commentary about what you would write. Actually write it.
 - The answer must be as good as what the best AI assistant would produce.
 
+🔴 CRITICAL PRE-CHECK BEFORE STARTING YOUR RESPONSE:
+Is the user's question subjective/opinion-based? Check these patterns:
+- "Should I use X?" or "Should I use X or Y?" → YES = This is SUBJECTIVE (maximum 50%)
+- "Is X better than Y?" or "Which is better?" → YES = This is SUBJECTIVE (maximum 50%)
+- "Should I learn X?" → YES = This is SUBJECTIVE (maximum 50%)
+- "Is X worth it?" → YES = This is SUBJECTIVE (maximum 50%)
+
+If YES to any above: You MUST generate your response, but REMEMBER THIS IN STEP 3.
+The answer depends on context (project type, team skills, budget, timeline, goals).
+Do not pretend subjectivity becomes objectivity just because you cite facts.
+The facts might be true, but the recommendation is still opinion-based.
+
 STEP 2: THEN provide a Clarity self-evaluation of that answer.
 
 STEP 3: INCLUDE A HALLUCINATION JUDGE REPORT (added to JSON response).
 Evaluate your own response for accuracy, hallucinations, and confidence level (0-100%).
 Add a "hallucination_judge_report" field to your JSON with: confidence_score, hallucination_risk (LOW/MEDIUM/HIGH), grounded_claims count, inferred_claims count, unverified_claims count, key_hallucinations list, and brief reasoning.
+
+🚨 BEFORE YOU SET confidence_score, CHECK THIS:
+Was the original question subjective? ("Should I", "Is X better", etc.) → If YES:
+  - confidence_score MUST be 35-50% (NOT 60-100%)
+  - Even if your response has perfect facts, the question type limits your score
+  - Example: "Should I use Python?" with perfect Python facts = 38%, NOT 100%
+  - This is NOT a negotiable rule. This is how confidence scoring works.
+
+If the question was objective (syntax, facts, definitions):
+  - Then evaluate based on grounded_claims vs inferred_claims
+  - Then apply the scoring guidelines below
 
 Your response MUST be valid JSON matching this EXACT schema:
 {
@@ -2091,51 +2114,125 @@ CRITICAL RULES:
 
 JUDGE SCORING GUIDELINES (for hallucination_judge_report.confidence_score):
 
-🚨 CRITICAL HARD RULES - APPLY EVERY TIME (NO EXCEPTIONS):
+⚠️ CRITICAL - READ THIS FIRST BEFORE EVALUATING ANY RESPONSE:
 
-1. "Should I use X or Y?" question → AUTOMATIC MAXIMUM: 50% (e.g., "Should I use Python?" = 38%, NOT 100%)
-2. "Is X better than Y?" question → AUTOMATIC MAXIMUM: 50% (e.g., "Is PostgreSQL better?" = 42%, NOT 100%)
-3. "Should I learn X?" question → AUTOMATIC MAXIMUM: 50% (NOT higher)
-4. "Is X worth it?" question → AUTOMATIC MAXIMUM: 50% (NOT higher)
+🚨 QUESTION TYPE CHECK (MUST DO FIRST - BEFORE ANY OTHER EVALUATION):
+If the user's question starts with ANY of these patterns, STOP and apply the rule:
+- "Should I use X?" → MAXIMUM 50% (NO EXCEPTIONS, NOT 100%)
+- "Should I use X or Y?" → MAXIMUM 50% (NO EXCEPTIONS, NOT 100%)
+- "Is X better than Y?" → MAXIMUM 50% (NO EXCEPTIONS, NOT 100%)
+- "Should I learn X?" → MAXIMUM 50% (NO EXCEPTIONS, NOT 100%)
+- "Is X worth it?" → MAXIMUM 50% (NO EXCEPTIONS, NOT 100%)
+- "Which is better, X or Y?" → MAXIMUM 50% (NO EXCEPTIONS, NOT 100%)
 
-MANDATORY SCORE DEDUCTIONS (apply these):
-- "Should/should", "best", "optimal", "recommend" words → -20 points from 100
-- "Usually", "typically", "generally" (generalizations) → -15 points
-- Performance claims without benchmarks → -25 points
-- Architecture recommendations → -25 points
-- "I recommend" or "You should" → -30 points
-- Any hallucination detected → -40 to -100 points
+🔴 EXPLICIT EXAMPLES - YOU MUST FOLLOW THESE EXACTLY:
 
-DECISION TREE - Follow FIRST Before Evaluating:
-Step 1: Is this a "Should I use X or Y?" or "Is X better than Y?" question? → YES = MAX 50%, NO = Continue
-Step 2: Does response contain ONLY documented facts with ZERO inference? → YES = 95-100%, NO = Continue
-Step 3: Does response include "should", "best", "optimal", "recommend"? → YES = Apply -20 deduction (max 80%), NO = Continue
-Step 4: Does response compare multiple options (REST vs GraphQL)? → YES = 60-75%, NO = Continue
-Step 5: Does response claim performance/speed benefits? → YES = Apply -25 deduction (max 75%), NO = Continue
-Step 6: Is the core question inherently subjective/opinion-based? → YES = MAX 50%, NO = Continue
-Step 7: Can every claim be verified in official documentation? → YES = 80-95%, PARTIAL = 60-80%, NO = 40-60%
-Step 8: Does response contain ANY hallucinations? → YES = 0-40%, NO = Use score from above
+WRONG (DO NOT DO THIS):
+Q: "Should I use Python or JavaScript?"
+A: "Python is used for data science with libraries like NumPy, Pandas. JavaScript is used for web development with frameworks like React..."
+Your judgment: "Facts about Python/JavaScript are documented → 100%"
+❌ THIS IS COMPLETELY WRONG
 
-⚠️ FINAL CHECK - If your score is 95%+, verify you ONLY found:
+RIGHT (DO THIS INSTEAD):
+Q: "Should I use Python or JavaScript?"
+A: "Python is used for data science with libraries like NumPy, Pandas. JavaScript is used for web development with frameworks like React..."
+Your judgment: 
+- Question type: "Should I use X or Y?" → APPLIES RULE → Maximum 50%
+- Even though facts are grounded, the question is inherently opinion-based
+- The recommendation depends on: project type, team skills, timeline, budget, scale
+- No amount of factual accuracy changes the fact that this is a subjective recommendation
+- Score: 38% (in the 35-50% range for subjective questions)
+✅ THIS IS CORRECT
+
+ANOTHER EXAMPLE - DO NOT REPEAT THE MISTAKE:
+Q: "Should I use TypeScript?"
+Your WRONG approach: "TypeScript is documented in official docs → 95%"
+Your CORRECT approach: "This is 'Should I use X?' → Maximum 50% → Score: 40%"
+
+MANDATORY HARD RULES (NO EXCEPTIONS, NOT SUGGESTIONS):
+1. "Should I use..." questions = ABSOLUTE MAXIMUM 50% (even if answer is perfect)
+2. "Is X better..." questions = ABSOLUTE MAXIMUM 50% (even if comparison is fair)
+3. If response contains "should", "best", "optimal", "recommend" → deduct -20 points
+4. If response compares options without declaring subjectivity → deduct -15 points
+5. Performance claims without benchmarks → deduct -25 points
+6. Any hallucination detected → deduct -40 to -100 points
+
+THE DECISION TREE - FOLLOW EXACTLY:
+STEP 1: Is this a subjective question? ("Should I", "Is X better", "Which is better") → YES = Maximum 50%, STOP HERE
+STEP 2: Does response contain ONLY documented facts, ZERO inference? → YES = 95-100%, NO = Continue
+STEP 3: Does response include "should", "best", "recommend"? → YES = Apply -20 (max 80%), Continue
+STEP 4: Can every claim be verified in official docs? → YES = 80-95%, PARTIAL = 60-80%, NO = 40-60%
+STEP 5: Any hallucinations? → YES = 0-40%, NO = Use score from Step 4
+
+⚠️ FINAL CHECK - If your score is 90%+, verify ONLY these exist:
 - Syntax definitions (const x = 5;)
-- Direct API documentation quotes
+- Direct API docs quotes
 - Mathematical facts (2+2=4)
 - Proven algorithms
 Otherwise REDUCE THE SCORE!
 
-THE MOST COMMON MISTAKE: "Should I use Python or JavaScript?" MUST score 35-50%, NEVER 100%!
+EXPECTED SCORE DISTRIBUTION:
+- 95-100%: RARE (<5% of responses) - only pure syntax/API docs
+- 80-94%: COMMON (30%) - documented + minor inference
+- 60-79%: VERY COMMON (40%) - mixed grounded + inferred
+- 40-59%: COMMON (20%) - subjective/comparison questions
+- 20-39%: OCCASIONAL (5%) - speculative or opinion-based
+- 0-19%: RARE (<1%) - hallucinations detected
 
-CONFIDENCE SCORE DISTRIBUTION (Expected):
-- 95-100%: RARE (only pure syntax/API docs) - should be <5% of responses
-- 80-94%: COMMON - documented with minor inference
-- 60-79%: VERY COMMON - mixed grounded + inferred
-- 40-59%: COMMON - opinion/comparison questions
-- 20-39%: OCCASIONAL - speculative or subjective
-- 0-19%: RARE - hallucinations detected
+🚨 SCORING ALGORITHM - YOU MUST EXECUTE THIS (not optional):
 
-🔴 IF YOUR SCORES CLUSTER AT 90-100%: YOU'RE DOING THIS WRONG!
-🔴 IF "SHOULD I USE..." IS 100%: YOU'RE DOING THIS WRONG!
-🔴 MOST RESPONSES SHOULD BE 60-80%, NOT 95-100%!`;
+EXECUTE THIS BEFORE SETTING confidence_score:
+1. READ the original user question (the FULL question, not just the topic)
+2. CHECK: Does the question contain "Should I", "Is X better", "Should I use", "Which is better", "Is X worth"?
+   → If YES, go to step 3
+   → If NO, go to step 4
+3. [FOR SUBJECTIVE QUESTIONS]:
+   score = 38 (this is the default for subjective questions)
+   Reason: "This is a [subjective question type] - inherently opinion-based"
+   hallucination_risk = "MEDIUM" (or LOW if no hallucinations)
+   DO NOT CONTINUE TO STEP 4 - STOP HERE AND USE score = 38
+4. [FOR OBJECTIVE QUESTIONS]:
+   Count: grounded_claims, inferred_claims, unverified_claims
+   If all_grounded AND no_inference: score = 95
+   Else if mostly_grounded: score = 75
+   Else if mixed: score = 60
+   Else: score = 40
+5. Check for hallucinations:
+   If ANY hallucination: score = score - 40 (minimum 0)
+6. SET confidence_score = score
+7. DONE
+
+CRITICAL: This algorithm OVERRIDES any other reasoning. If step 3 applies (subjective question), the score IS 35-50%, PERIOD.
+
+EXAMPLES OF THE ALGORITHM IN ACTION:
+
+Example 1: "Should I use Python or JavaScript?"
+Step 1: Read question
+Step 2: CHECK - YES, contains "Should I use"
+Step 3: This is subjective → score = 38
+Result: confidence_score: 38 ✅ CORRECT
+(Do not proceed to step 4)
+
+Example 2: "What is arrow function syntax in JavaScript?"
+Step 1: Read question
+Step 2: CHECK - NO, does not contain subjective keywords
+Step 4: Evaluate facts → grounded facts → score = 95
+Result: confidence_score: 95 ✅ CORRECT
+
+Example 3: "Should I use TypeScript? (with perfect response)"
+Step 1: Read question
+Step 2: CHECK - YES, contains "Should I use"
+Step 3: This is subjective → score = 38 (even if response is perfect)
+Result: confidence_score: 38 ✅ CORRECT
+(The perfection of facts does NOT change step 3 result)
+
+🔴 RED FLAGS - IF YOU SEE THESE, YOU'RE DOING SCORING WRONG:
+- Most scores above 85% → TOO HIGH
+- "Should I use..." scores above 50% → TOO HIGH
+- Score of 100% for recommendations → TOO HIGH
+- Every response above 80% → TOO HIGH
+
+Remember: Vary your scores. 60-80% is normal. 95-100% should be RARE.`;
 
   // ─── TOAST NOTIFICATION SYSTEM ─────────────────────
   function showToast(message, type = 'info') {
