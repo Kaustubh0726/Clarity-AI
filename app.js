@@ -2046,6 +2046,18 @@ If the question was objective (syntax, facts, definitions):
   - Then evaluate based on grounded_claims vs inferred_claims
   - Then apply the scoring guidelines below
 
+MANDATORY: You MUST fill out the scoring_checklist field in your JSON response:
+{
+  "scoring_checklist": {
+    "question_type": "Write what type of question this is (subjective/objective) and WHY",
+    "max_allowed_score": "Based on the question type, what is the maximum allowed score?",
+    "deductions_applied": "List EVERY deduction you applied (e.g., '-20 for uncertain language', '-15 for hedging')",
+    "final_calculation": "Show the math: Start 100, minus [deduction 1], minus [deduction 2], = [final score]"
+  }
+}
+
+This checklist is YOUR WORK SHOWN. Without it, you are not following instructions.
+
 Your response MUST be valid JSON matching this EXACT schema:
 {
   "mainResponse": "<p>The COMPLETE, ACTUAL answer to the user's question in full HTML. This is what a normal AI would show. For emails, include Subject, Dear..., body, sign-off. For code, include the full code. For analysis, include all the detail. Use <strong>, <em>, <code>, <pre>, <ul>, <li>, <h3>, <h4>, <table>, <tr>, <td>, <blockquote> tags as needed. Make this comprehensive and directly usable.</p>",
@@ -2099,7 +2111,13 @@ Your response MUST be valid JSON matching this EXACT schema:
     "inferred_claims": 1,
     "unverified_claims": 0,
     "key_hallucinations": "None detected",
-    "reasoning": "Response is grounded in documentation with reasonable inferences about best practices."
+    "reasoning": "Response is grounded in documentation with reasonable inferences about best practices.",
+    "scoring_checklist": {
+      "question_type": "Is this a subjective question (Should I, Is X better, etc)? YES/NO",
+      "max_allowed_score": "Based on question type: X%",
+      "deductions_applied": "List each deduction and amount",
+      "final_calculation": "Start 100, apply deductions = final score"
+    }
   }
 }
 
@@ -2192,39 +2210,56 @@ EXECUTE THIS BEFORE SETTING confidence_score:
    hallucination_risk = "MEDIUM" (or LOW if no hallucinations)
    DO NOT CONTINUE TO STEP 4 - STOP HERE AND USE score = 38
 4. [FOR OBJECTIVE QUESTIONS]:
-   Count: grounded_claims, inferred_claims, unverified_claims
-   If all_grounded AND no_inference: score = 95
-   Else if mostly_grounded: score = 75
-   Else if mixed: score = 60
-   Else: score = 40
+   CHECK: Does the response contain these phrases?
+   - "What I'm inferring" → Apply -20 deduction
+   - "I'm inferring" → Apply -20 deduction
+   - "Where uncertainty exists" → Apply -20 deduction
+   - "Uncertainty remains" → Apply -20 deduction
+   - "Inferred" OR "Speculative" OR "Based on trends" → Apply -15 deduction
+   - "My perspective" OR "I'd recommend" OR "I recommend" → Apply -20 deduction
+   - "appears to", "suggests", "likely", "may" (hedging language) → Apply -10 deduction
+   
+   Start_score = 100
+   For each phrase found: start_score = start_score - deduction
+   
+   If response contains ANY admission of uncertainty: Maximum score = 75
+   If response contains significant inference sections: Maximum score = 70
+   
+   score = min(start_score, 75)
 5. Check for hallucinations:
    If ANY hallucination: score = score - 40 (minimum 0)
 6. SET confidence_score = score
 7. DONE
 
-CRITICAL: This algorithm OVERRIDES any other reasoning. If step 3 applies (subjective question), the score IS 35-50%, PERIOD.
+CRITICAL: This algorithm OVERRIDES any other reasoning. 
 
-EXAMPLES OF THE ALGORITHM IN ACTION:
+EXAMPLES:
 
 Example 1: "Should I use Python or JavaScript?"
-Step 1: Read question
-Step 2: CHECK - YES, contains "Should I use"
-Step 3: This is subjective → score = 38
-Result: confidence_score: 38 ✅ CORRECT
-(Do not proceed to step 4)
+Result: confidence_score = 38 ✅ (Subjective question rule)
 
-Example 2: "What is arrow function syntax in JavaScript?"
-Step 1: Read question
-Step 2: CHECK - NO, does not contain subjective keywords
-Step 4: Evaluate facts → grounded facts → score = 95
-Result: confidence_score: 95 ✅ CORRECT
+Example 2: "What is arrow function syntax?"
+Result: confidence_score = 95 ✅ (Pure grounded facts)
 
-Example 3: "Should I use TypeScript? (with perfect response)"
-Step 1: Read question
-Step 2: CHECK - YES, contains "Should I use"
-Step 3: This is subjective → score = 38 (even if response is perfect)
-Result: confidence_score: 38 ✅ CORRECT
-(The perfection of facts does NOT change step 3 result)
+Example 3: "What I'm inferring about [topic]... Where uncertainty exists... I'd recommend..."
+Analysis:
+- Contains "What I'm inferring" → -20
+- Contains "Where uncertainty exists" → -20
+- Contains "I'd recommend" → -20
+- Total deductions: 60 points
+- start_score: 100 - 60 = 40
+- Admission of uncertainty present → Max 75
+- Final score: min(40, 75) = 40 ✅ (CORRECT)
+Result: confidence_score = 40 🟡
+
+Example 4: "Based on established fundamentals and trends, I infer..."
+Analysis:
+- Contains "infer/inferring" → -15
+- Hedging language "trends suggest" → -10
+- start_score: 100 - 25 = 75
+- Contains inference → Max 70
+- Final score: min(75, 70) = 70 🟡
+Result: confidence_score = 70 🟡 (NOT 100%)
 
 🔴 RED FLAGS - IF YOU SEE THESE, YOU'RE DOING SCORING WRONG:
 - Most scores above 85% → TOO HIGH
@@ -2232,7 +2267,22 @@ Result: confidence_score: 38 ✅ CORRECT
 - Score of 100% for recommendations → TOO HIGH
 - Every response above 80% → TOO HIGH
 
-Remember: Vary your scores. 60-80% is normal. 95-100% should be RARE.`;
+Remember: Vary your scores. 60-80% is normal. 95-100% should be RARE.
+
+⚠️ FINAL REQUIREMENT - NON-NEGOTIABLE:
+
+Your JSON response MUST include the scoring_checklist. If you don't include it, you are violating these instructions.
+
+The scoring_checklist proves that you:
+1. Evaluated the question type FIRST (not last)
+2. Applied the deductions explicitly
+3. Showed your math
+4. Did not just guess a number
+
+If you give confidence_score: 100% without showing deductions in scoring_checklist, that is a failure to follow instructions.
+If you give confidence_score: 85% but scoring_checklist shows no deductions, that is inconsistent and wrong.
+
+EXECUTE THE ALGORITHM. FILL OUT THE CHECKLIST. EVERY TIME.`;
 
   // ─── TOAST NOTIFICATION SYSTEM ─────────────────────
   function showToast(message, type = 'info') {
