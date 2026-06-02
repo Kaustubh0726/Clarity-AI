@@ -1572,11 +1572,11 @@ CRITICAL RULES:
 
   function updateModelBadge() {
     if (state.apiMode === 'api' && state.apiKey) {
-      dom.modelName.textContent = 'Claude 4 Opus · Live';
+      dom.modelName.textContent = 'Clarity AI · Live';
       dom.apiStatusDot.classList.add('active');
       dom.apiStatusText.textContent = 'Connected';
     } else {
-      dom.modelName.textContent = 'Claude 4 Opus · Simulator';
+      dom.modelName.textContent = 'Clarity AI · Simulator';
       dom.apiStatusDot.classList.remove('active');
       dom.apiStatusText.textContent = 'Not connected';
     }
