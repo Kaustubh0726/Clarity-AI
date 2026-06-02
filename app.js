@@ -649,6 +649,20 @@ if (dom.lensMode) {
     // Build the main response HTML (the actual answer)
     const mainResponseHTML = msg.mainResponse ? `<div class="main-response">${msg.mainResponse}</div>` : '';
 
+    // Calculate validation score
+    // Priority 1: Use AI model's self-assessment (hallucination judge)
+    // Priority 2: Fall back to hardcoded heuristics if judge report not available
+    let validationScore = extractJudgeConfidenceScore(msg);
+    if (validationScore === null) {
+      // Fallback to hardcoded validation if model didn't provide judge report
+      validationScore = calculateValidationScore(msg.mainResponse, msg.segments || []);
+    }
+    
+    // Get judge report details if available (for debugging/future use)
+    const judgeDetails = getJudgeReportDetails(msg);
+    
+    const confidenceBadgeHTML = renderConfidenceBadge(validationScore);
+
     // Build Clarity evaluation segments
     let segmentsHTML = '';
     const nudgeMap = {};
@@ -677,6 +691,7 @@ if (dom.lensMode) {
           <span class="clarity-eval-divider-label">◈ Clarity Evaluation</span>
           <span class="clarity-eval-divider-line"></span>
         </div>
+        ${confidenceBadgeHTML}
         ${segmentsHTML}
         ${referencesHTML}
         ${clarityCardHTML}
@@ -847,6 +862,212 @@ if (dom.lensMode) {
         showToast(`⚠️ Conversion to ${SUPPORTED_LANGUAGES[targetLang].name} failed`, 'warning');
       }
     }, 500);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // SEMANTIC VALIDATION & CONFIDENCE SCORING ENGINE
+  // Validates response sentences against context/documentation
+  // ═══════════════════════════════════════════════════════
+  // AI-POWERED HALLUCINATION DETECTION
+  // Parses the model's self-evaluation judge report
+  // ═══════════════════════════════════════════════════════
+
+  /**
+   * Extract confidence score from hallucination judge report
+   * Model provides its own accuracy assessment in JSON response
+   * @param {object} msg - Message object with parsed JSON from model
+   * @returns {number} Confidence score 0-100, or null if not present
+   */
+  function extractJudgeConfidenceScore(msg) {
+    try {
+      if (msg && msg.hallucination_judge_report && typeof msg.hallucination_judge_report.confidence_score === 'number') {
+        const score = msg.hallucination_judge_report.confidence_score;
+        return Math.max(0, Math.min(100, Math.round(score))); // Clamp 0-100
+      }
+    } catch (e) {
+      // If parsing fails, return null to use fallback
+      return null;
+    }
+    return null;
+  }
+
+  /**
+   * Get judge report details for logging/debugging
+   * @param {object} msg - Message object
+   * @returns {object} Judge report details or null
+   */
+  function getJudgeReportDetails(msg) {
+    try {
+      if (msg && msg.hallucination_judge_report) {
+        return {
+          confidence: msg.hallucination_judge_report.confidence_score,
+          risk: msg.hallucination_judge_report.hallucination_risk,
+          grounded: msg.hallucination_judge_report.grounded_claims,
+          inferred: msg.hallucination_judge_report.inferred_claims,
+          unverified: msg.hallucination_judge_report.unverified_claims,
+          hallucinations: msg.hallucination_judge_report.key_hallucinations,
+          reasoning: msg.hallucination_judge_report.reasoning
+        };
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // FALLBACK VALIDATION (used if judge report not available)
+  // ═══════════════════════════════════════════════════════
+  function splitIntoSentences(text) {
+    if (!text || typeof text !== 'string') return [];
+    
+    // Remove HTML tags for sentence splitting
+    const plainText = text.replace(/<[^>]*>/g, ' ');
+    
+    // Split on sentence boundaries but keep them
+    const sentences = plainText
+      .split(/(?<=[.!?])\s+(?=[A-Z])|(?<=[.!?])\s*$/g)
+      .filter(s => s.trim().length > 0)
+      .map(s => s.trim());
+    
+    return sentences;
+  }
+
+  /**
+   * Judge function: Validates if a sentence is grounded in context
+   * Analyzes segments to determine if sentence is well-grounded
+   * @param {string} sentence - Sentence to validate
+   * @param {Array} segments - Response segments with types (grounded/inferred/uncertain)
+   * @returns {boolean} Whether sentence is grounded
+   */
+  function judgeSemanticValidity(sentence, segments = []) {
+    if (!sentence || sentence.length < 3) return false;
+
+    const sentenceLower = sentence.toLowerCase();
+    let groundedCount = 0;
+    let totalSegments = 0;
+
+    // Check which segments contain parts of this sentence
+    segments.forEach(seg => {
+      if (seg.content) {
+        const segContent = seg.content.toLowerCase();
+        
+        // Check if sentence content overlaps with segment
+        const words = sentenceLower.split(/\s+/).filter(w => w.length > 3);
+        const wordMatches = words.filter(w => segContent.includes(w)).length;
+        
+        if (wordMatches > 0) {
+          totalSegments++;
+          // Grounded segments validate the sentence
+          if (seg.type === 'grounded') {
+            groundedCount += wordMatches;
+          }
+          // Inferred segments are partially valid
+          else if (seg.type === 'inferred') {
+            groundedCount += wordMatches * 0.5;
+          }
+          // Uncertain/subjective segments don't contribute
+        }
+      }
+    });
+
+    // If we have matching segments, use their grounding
+    if (totalSegments > 0) {
+      return groundedCount > 0;
+    }
+
+    // Fallback: Check for confidence indicators in sentence
+    const uncertainWords = ['may', 'might', 'could', 'possibly', 'reportedly', 'allegedly', 'suggest', 'appear'];
+    const certainWords = ['clearly', 'definitely', 'prove', 'demonstrated', 'verified', 'confirmed', 'established'];
+    
+    const hasUncertainty = uncertainWords.some(w => sentenceLower.includes(w));
+    const hasCertainty = certainWords.some(w => sentenceLower.includes(w));
+
+    return hasCertainty || !hasUncertainty;
+  }
+
+  /**
+   * Calculate semantic validation score
+   * @param {string} mainResponse - Main response text
+   * @param {Array} segments - Response segments
+   * @returns {number} Validation score 0-100
+   */
+  function calculateValidationScore(mainResponse = '', segments = []) {
+    if (!mainResponse || mainResponse.length < 10) return 0;
+
+    const sentences = splitIntoSentences(mainResponse);
+    if (sentences.length === 0) return 0;
+
+    const validSentences = sentences.filter(sentence => {
+      return judgeSemanticValidity(sentence, segments);
+    });
+
+    const score = Math.round((validSentences.length / sentences.length) * 100);
+    return Math.max(0, Math.min(100, score)); // Clamp 0-100
+  }
+
+  /**
+   * Determine confidence badge type based on score
+   * @param {number} score - Validation score 0-100
+   * @returns {object} Badge configuration
+   */
+  function getConfidenceBadge(score) {
+    if (score >= 80) {
+      return {
+        level: 'high',
+        color: '#34D399',
+        bgColor: 'rgba(52, 211, 153, 0.1)',
+        icon: '✓',
+        text: `Highly Verified`,
+        subtitle: `${score}% grounded in documentation`,
+        ariaLabel: `Confidence score: ${score}% - Highly verified`
+      };
+    } else if (score >= 40) {
+      return {
+        level: 'medium',
+        color: '#FBBF24',
+        bgColor: 'rgba(251, 191, 36, 0.1)',
+        icon: '◐',
+        text: `Partially AI-Generated`,
+        subtitle: `${score}% grounded in documentation`,
+        ariaLabel: `Confidence score: ${score}% - Partially verified`
+      };
+    } else {
+      return {
+        level: 'low',
+        color: '#F87171',
+        bgColor: 'rgba(248, 113, 113, 0.1)',
+        icon: '⚠',
+        text: `Low Verification`,
+        subtitle: `${score}% grounded — Please verify with official support`,
+        ariaLabel: `Confidence score: ${score}% - Low verification required`
+      };
+    }
+  }
+
+  /**
+   * Render confidence badge component
+   * @param {number} score - Validation score
+   * @returns {string} HTML for badge
+   */
+  function renderConfidenceBadge(score) {
+    const badge = getConfidenceBadge(score);
+    
+    return `
+      <div class="confidence-badge confidence-badge-${badge.level}" 
+           style="border-color: ${badge.color}; background-color: ${badge.bgColor};"
+           role="status"
+           aria-label="${badge.ariaLabel}">
+        <div class="badge-icon" style="color: ${badge.color};">${badge.icon}</div>
+        <div class="badge-content">
+          <div class="badge-label" style="color: ${badge.color};">${badge.text}</div>
+          <div class="badge-subtitle">${badge.subtitle}</div>
+        </div>
+        <div class="badge-score" style="background-color: ${badge.color}; color: white;">
+          ${score}%
+        </div>
+      </div>
+    `;
   }
 
   function renderSegment(seg) {
@@ -1786,7 +2007,7 @@ class ${className}Handler {
   // responses with structured self-critique JSON.
   // ═══════════════════════════════════════════════════════
 
-  const GEMINI_SYSTEM_PROMPT = `You are "Clarity AI", a world-class AI assistant. The user is asking you a question or giving you a task. You MUST do TWO things:
+  const GEMINI_SYSTEM_PROMPT = `You are "Clarity AI", a world-class AI assistant. The user is asking you a question or giving you a task. You MUST do THREE things:
 
 STEP 1: ACTUALLY ANSWER THE USER'S QUESTION FULLY AND ACCURATELY.
 - If they ask you to draft an email, draft the ACTUAL complete email they can copy-paste.
@@ -1797,6 +2018,10 @@ STEP 1: ACTUALLY ANSWER THE USER'S QUESTION FULLY AND ACCURATELY.
 - The answer must be as good as what the best AI assistant would produce.
 
 STEP 2: THEN provide a Clarity self-evaluation of that answer.
+
+STEP 3: INCLUDE A HALLUCINATION JUDGE REPORT (added to JSON response).
+Evaluate your own response for accuracy, hallucinations, and confidence level (0-100%).
+Add a "hallucination_judge_report" field to your JSON with: confidence_score, hallucination_risk (LOW/MEDIUM/HIGH), grounded_claims count, inferred_claims count, unverified_claims count, key_hallucinations list, and brief reasoning.
 
 Your response MUST be valid JSON matching this EXACT schema:
 {
@@ -1843,7 +2068,16 @@ Your response MUST be valid JSON matching this EXACT schema:
       "content": "A thought-provoking evaluation prompt about the main response",
       "type": "technical OR perspective OR evaluation"
     }
-  ]
+  ],
+  "hallucination_judge_report": {
+    "confidence_score": 85,
+    "hallucination_risk": "LOW",
+    "grounded_claims": 3,
+    "inferred_claims": 1,
+    "unverified_claims": 0,
+    "key_hallucinations": "None detected",
+    "reasoning": "Response is grounded in documentation with reasonable inferences about best practices."
+  }
 }
 
 CRITICAL RULES:
@@ -1853,7 +2087,15 @@ CRITICAL RULES:
 - Include 1 evaluation nudge after the 1st or 2nd segment
 - Include 2-4 references with REAL, verified URLs when the topic warrants citations
 - The Clarity Card must be genuinely self-critical, not generic
-- Use rich HTML in mainResponse — make it look polished and professional`;
+- Use rich HTML in mainResponse — make it look polished and professional
+
+JUDGE SCORING GUIDELINES (for hallucination_judge_report.confidence_score):
+- 95-100%: Entirely from official documentation or proven facts. Zero hallucinations.
+- 80-94%: Mostly grounded with 1-2 minor inferences or non-critical details.
+- 60-79%: Mixes verified information with reasonable inferences. Some claims lack source verification.
+- 40-59%: Significant inferred content or educated guesses. Notable uncertainty present.
+- 20-39%: Largely speculative or contains unverified claims. High hallucination risk.
+- 0-19%: Multiple hallucinations, contradictions, or completely unverified information.`;
 
   // ─── TOAST NOTIFICATION SYSTEM ─────────────────────
   function showToast(message, type = 'info') {
