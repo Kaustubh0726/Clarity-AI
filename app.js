@@ -2090,12 +2090,52 @@ CRITICAL RULES:
 - Use rich HTML in mainResponse — make it look polished and professional
 
 JUDGE SCORING GUIDELINES (for hallucination_judge_report.confidence_score):
-- 95-100%: Entirely from official documentation or proven facts. Zero hallucinations.
-- 80-94%: Mostly grounded with 1-2 minor inferences or non-critical details.
-- 60-79%: Mixes verified information with reasonable inferences. Some claims lack source verification.
-- 40-59%: Significant inferred content or educated guesses. Notable uncertainty present.
-- 20-39%: Largely speculative or contains unverified claims. High hallucination risk.
-- 0-19%: Multiple hallucinations, contradictions, or completely unverified information.`;
+
+🚨 CRITICAL HARD RULES - APPLY EVERY TIME (NO EXCEPTIONS):
+
+1. "Should I use X or Y?" question → AUTOMATIC MAXIMUM: 50% (e.g., "Should I use Python?" = 38%, NOT 100%)
+2. "Is X better than Y?" question → AUTOMATIC MAXIMUM: 50% (e.g., "Is PostgreSQL better?" = 42%, NOT 100%)
+3. "Should I learn X?" question → AUTOMATIC MAXIMUM: 50% (NOT higher)
+4. "Is X worth it?" question → AUTOMATIC MAXIMUM: 50% (NOT higher)
+
+MANDATORY SCORE DEDUCTIONS (apply these):
+- "Should/should", "best", "optimal", "recommend" words → -20 points from 100
+- "Usually", "typically", "generally" (generalizations) → -15 points
+- Performance claims without benchmarks → -25 points
+- Architecture recommendations → -25 points
+- "I recommend" or "You should" → -30 points
+- Any hallucination detected → -40 to -100 points
+
+DECISION TREE - Follow FIRST Before Evaluating:
+Step 1: Is this a "Should I use X or Y?" or "Is X better than Y?" question? → YES = MAX 50%, NO = Continue
+Step 2: Does response contain ONLY documented facts with ZERO inference? → YES = 95-100%, NO = Continue
+Step 3: Does response include "should", "best", "optimal", "recommend"? → YES = Apply -20 deduction (max 80%), NO = Continue
+Step 4: Does response compare multiple options (REST vs GraphQL)? → YES = 60-75%, NO = Continue
+Step 5: Does response claim performance/speed benefits? → YES = Apply -25 deduction (max 75%), NO = Continue
+Step 6: Is the core question inherently subjective/opinion-based? → YES = MAX 50%, NO = Continue
+Step 7: Can every claim be verified in official documentation? → YES = 80-95%, PARTIAL = 60-80%, NO = 40-60%
+Step 8: Does response contain ANY hallucinations? → YES = 0-40%, NO = Use score from above
+
+⚠️ FINAL CHECK - If your score is 95%+, verify you ONLY found:
+- Syntax definitions (const x = 5;)
+- Direct API documentation quotes
+- Mathematical facts (2+2=4)
+- Proven algorithms
+Otherwise REDUCE THE SCORE!
+
+THE MOST COMMON MISTAKE: "Should I use Python or JavaScript?" MUST score 35-50%, NEVER 100%!
+
+CONFIDENCE SCORE DISTRIBUTION (Expected):
+- 95-100%: RARE (only pure syntax/API docs) - should be <5% of responses
+- 80-94%: COMMON - documented with minor inference
+- 60-79%: VERY COMMON - mixed grounded + inferred
+- 40-59%: COMMON - opinion/comparison questions
+- 20-39%: OCCASIONAL - speculative or subjective
+- 0-19%: RARE - hallucinations detected
+
+🔴 IF YOUR SCORES CLUSTER AT 90-100%: YOU'RE DOING THIS WRONG!
+🔴 IF "SHOULD I USE..." IS 100%: YOU'RE DOING THIS WRONG!
+🔴 MOST RESPONSES SHOULD BE 60-80%, NOT 95-100%!`;
 
   // ─── TOAST NOTIFICATION SYSTEM ─────────────────────
   function showToast(message, type = 'info') {
