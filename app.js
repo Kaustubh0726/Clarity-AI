@@ -1019,17 +1019,35 @@ if (dom.lensMode) {
 
     let score = Math.round((validSentences.length / sentences.length) * 100);
 
-    // Apply conservative caps so fallback heuristics don't report unrealistic certainty.
+    // Apply caps based on content type. Caps are intentionally generous so that
+    // well-grounded responses can reach the green badge (≥80%).  Only pure
+    // opinion / highly-speculative content should be pushed into amber/red.
     const text = mainResponse.toLowerCase();
-    const hasSubjectiveLanguage = /(should|recommend|best|better|worth it|i suggest|my perspective)/.test(text);
-    const hasUncertaintyLanguage = /(may|might|could|uncertain|unknown|possibly|likely)/.test(text);
+
+    // Count how many uncertainty signals are present so we penalise
+    // proportionally rather than applying a flat hard ceiling.
+    const subjectiveMatches = (text.match(/(should|recommend|best|better|worth it|i suggest|my perspective)/g) || []).length;
+    const uncertaintyMatches = (text.match(/\b(may|might|could|uncertain|unknown|possibly|likely)\b/g) || []).length;
     const hasFewSentences = sentences.length < 3;
     const hasNoSegments = !segments || segments.length === 0;
 
-    if (hasSubjectiveLanguage) score = Math.min(score, 70);
-    if (hasUncertaintyLanguage) score = Math.min(score, 80);
-    if (hasFewSentences) score = Math.min(score, 85);
-    if (hasNoSegments) score = Math.min(score, 75);
+    // Subjective language: apply a soft penalty only when it dominates the text.
+    // A single "best practice" mention in an otherwise factual response should not
+    // drag the score below 80 %; only responses that are predominantly opinionated
+    // (3+ subjective signals) get a meaningful cap.
+    if (subjectiveMatches >= 3) score = Math.min(score, 72);
+    else if (subjectiveMatches >= 1) score = Math.min(score, 84);
+
+    // Hedging language: mild penalty; one or two "may/might" in a technical
+    // explanation is normal and should not prevent a green badge.
+    if (uncertaintyMatches >= 4) score = Math.min(score, 78);
+    else if (uncertaintyMatches >= 2) score = Math.min(score, 88);
+
+    // Very short responses lack enough signal for high confidence.
+    if (hasFewSentences) score = Math.min(score, 88);
+
+    // No segments means we are running blind; stay slightly conservative.
+    if (hasNoSegments) score = Math.min(score, 82);
 
     return Math.max(0, Math.min(100, score)); // Clamp 0-100
   }
@@ -2222,9 +2240,9 @@ Otherwise REDUCE THE SCORE!
 
 EXPECTED SCORE DISTRIBUTION:
 - 95-100%: RARE (<5% of responses) - only pure syntax/API docs
-- 80-94%: COMMON (30%) - documented + minor inference
-- 60-79%: VERY COMMON (40%) - mixed grounded + inferred
-- 40-59%: COMMON (20%) - subjective/comparison questions
+- 80-94%: VERY COMMON (40%) - documented facts + minor inference
+- 60-79%: COMMON (35%) - mixed grounded + inferred
+- 40-59%: COMMON (15%) - subjective/comparison questions
 - 20-39%: OCCASIONAL (5%) - speculative or opinion-based
 - 0-19%: RARE (<1%) - hallucinations detected
 
@@ -2253,10 +2271,10 @@ EXECUTE THIS BEFORE SETTING confidence_score:
    Start_score = 100
    For each phrase found: start_score = start_score - deduction
    
-   If response contains ANY admission of uncertainty: Maximum score = 75
-   If response contains significant inference sections: Maximum score = 70
+   If response contains ANY admission of uncertainty: Maximum score = 85
+   If response contains significant inference sections: Maximum score = 78
    
-   score = min(start_score, 75)
+   score = min(start_score, 85)
 5. Check for hallucinations:
    If ANY hallucination: score = score - 40 (minimum 0)
 6. SET confidence_score = score
@@ -2288,17 +2306,17 @@ Analysis:
 - Contains "infer/inferring" → -15
 - Hedging language "trends suggest" → -10
 - start_score: 100 - 25 = 75
-- Contains inference → Max 70
-- Final score: min(75, 70) = 70 🟡
-Result: confidence_score = 70 🟡 (NOT 100%)
+- Contains inference → Max 78
+- Final score: min(75, 78) = 75 🟡
+Result: confidence_score = 75 🟡 (NOT 100%)
 
 🔴 RED FLAGS - IF YOU SEE THESE, YOU'RE DOING SCORING WRONG:
-- Most scores above 85% → TOO HIGH
+- Most scores above 95% → TOO HIGH (unless pure syntax/API docs)
 - "Should I use..." scores above 50% → TOO HIGH
 - Score of 100% for recommendations → TOO HIGH
-- Every response above 80% → TOO HIGH
+- Every response above 90% → SUSPICIOUS — double-check your checklist
 
-Remember: Vary your scores. 60-80% is normal. 95-100% should be RARE.
+Remember: Vary your scores. 75-90% is normal for grounded technical responses. 60-79% for mixed inference. 95-100% should be RARE (pure syntax/math only).
 
 ⚠️ FINAL REQUIREMENT - NON-NEGOTIABLE:
 
